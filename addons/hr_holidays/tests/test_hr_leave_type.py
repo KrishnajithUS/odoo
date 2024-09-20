@@ -13,34 +13,42 @@ from odoo.addons.hr_holidays.tests.common import TestHrHolidaysCommon
 class TestHrLeaveType(TestHrHolidaysCommon):
 
     def test_time_type(self):
-        leave_type = self.env['hr.leave.type'].create({
-            'name': 'Paid Time Off',
-            'time_type': 'leave',
-            'requires_allocation': 'no',
-        })
+        leave_type = self.env["hr.leave.type"].create(
+            {
+                "name": "Paid Time Off",
+                "time_type": "leave",
+                "requires_allocation": "no",
+            }
+        )
 
-        leave_date = date_utils.start_of((date.today() - relativedelta(days=1)), 'week')
-        leave_1 = self.env['hr.leave'].create({
-            'name': 'Doctor Appointment',
-            'employee_id': self.employee_hruser_id,
-            'holiday_status_id': leave_type.id,
-            'request_date_from': leave_date,
-            'request_date_to': leave_date,
-        })
+        leave_date = date_utils.start_of((date.today() - relativedelta(days=1)), "week")
+        leave_1 = self.env["hr.leave"].create(
+            {
+                "name": "Doctor Appointment",
+                "employee_id": self.employee_hruser_id,
+                "holiday_status_id": leave_type.id,
+                "request_date_from": leave_date,
+                "request_date_to": leave_date,
+            }
+        )
         leave_1.action_approve()
 
         self.assertEqual(
-            self.env['resource.calendar.leaves'].search([('holiday_id', '=', leave_1.id)]).time_type,
-            'leave'
+            self.env["resource.calendar.leaves"]
+            .search([("holiday_id", "=", leave_1.id)])
+            .time_type,
+            "leave",
         )
 
     def test_type_creation_right(self):
         # HrUser creates some holiday statuses -> crash because only HrManagers should do this
         with self.assertRaises(AccessError):
-            self.env['hr.leave.type'].with_user(self.user_hruser_id).create({
-                'name': 'UserCheats',
-                'requires_allocation': 'no',
-            })
+            self.env["hr.leave.type"].with_user(self.user_hruser_id).create(
+                {
+                    "name": "UserCheats",
+                    "requires_allocation": "no",
+                }
+            )
 
     def test_users_tz_shift_back(self):
         """This test follows closely related bug report and simulates its situation.
@@ -53,22 +61,28 @@ class TestHrLeaveType(TestHrHolidaysCommon):
             └─────────────────┘             requested
           Valid allocation period              day
         """
-        employee = self.env['hr.employee'].create({'name': 'Test Employee'})
-        leave_type = self.env['hr.leave.type'].create({'name': 'Test Leave'})
+        employee = self.env["hr.employee"].create({"name": "Test Employee"})
+        leave_type = self.env["hr.leave.type"].create({"name": "Test Leave"})
 
-        self.env['hr.leave.allocation'].sudo().create({
-            'state': 'confirm',
-            'holiday_status_id': leave_type.id,
-            'employee_id': employee.id,
-            'date_from': '2024-08-19',
-            'date_to': '2024-08-20',
-        }).action_validate()
+        self.env["hr.leave.allocation"].sudo().create(
+            {
+                "state": "confirm",
+                "holiday_status_id": leave_type.id,
+                "employee_id": employee.id,
+                "date_from": "2024-08-19",
+                "date_to": "2024-08-20",
+            }
+        ).action_validate()
 
-        leave_types = self.env['hr.leave.type'].with_context(
-            default_date_from='2024-08-20 21:00:00',
-            default_date_to='2024-08-21 09:00:00',
-            tz='Pacific/Saipan',
-            employee_id=employee.id,
-            ).search([('has_valid_allocation', '=', True)], limit=1)
+        leave_types = (
+            self.env["hr.leave.type"]
+            .with_context(
+                default_date_from="2024-08-20 21:00:00",
+                default_date_to="2024-08-21 09:00:00",
+                tz="Pacific/Saipan",
+                employee_id=employee.id,
+            )
+            .search([("has_valid_allocation", "=", True)], limit=1)
+        )
 
         self.assertFalse(leave_types, "Got valid leaves outside vaild period")

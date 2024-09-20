@@ -24,9 +24,15 @@ class WebsocketCase(HttpCase):
         if websocket is None:
             cls._logger.warning("websocket-client module is not installed")
             raise unittest.SkipTest("websocket-client module is not installed")
-        cls._BASE_WEBSOCKET_URL = f"ws://{HOST}:{odoo.tools.config['http_port']}/websocket"
-        cls._WEBSOCKET_URL = f"{cls._BASE_WEBSOCKET_URL}?version={WebsocketConnectionHandler._VERSION}"
-        websocket_allowed_patch = patch.object(WebsocketConnectionHandler, "websocket_allowed", return_value=True)
+        cls._BASE_WEBSOCKET_URL = (
+            f"ws://{HOST}:{odoo.tools.config['http_port']}/websocket"
+        )
+        cls._WEBSOCKET_URL = (
+            f"{cls._BASE_WEBSOCKET_URL}?version={WebsocketConnectionHandler._VERSION}"
+        )
+        websocket_allowed_patch = patch.object(
+            WebsocketConnectionHandler, "websocket_allowed", return_value=True
+        )
         cls.startClassPatcher(websocket_allowed_patch)
 
     def setUp(self):
@@ -44,9 +50,7 @@ class WebsocketCase(HttpCase):
             websocket_closed_event.set()
 
         self._serve_forever_patch = patch.object(
-            WebsocketConnectionHandler,
-            '_serve_forever',
-            wraps=_mocked_serve_forever
+            WebsocketConnectionHandler, "_serve_forever", wraps=_mocked_serve_forever
         )
         self.startPatcher(self._serve_forever_patch)
 
@@ -70,14 +74,12 @@ class WebsocketCase(HttpCase):
         opened with a default session. The created websocket is closed
         at the end of the test.
         """
-        if 'cookie' not in kwargs:
+        if "cookie" not in kwargs:
             self.session = self.authenticate(None, None)
-            kwargs['cookie'] = f'session_id={self.session.sid}'
-        if 'timeout' not in kwargs:
-            kwargs['timeout'] = 5
-        ws = websocket.create_connection(
-            self._WEBSOCKET_URL, *args, **kwargs
-        )
+            kwargs["cookie"] = f"session_id={self.session.sid}"
+        if "timeout" not in kwargs:
+            kwargs["timeout"] = 5
+        ws = websocket.create_connection(self._WEBSOCKET_URL, *args, **kwargs)
         if ping_after_connect:
             ws.ping()
             ws.recv_data_frame(control_frame=True)  # pong
@@ -85,7 +87,7 @@ class WebsocketCase(HttpCase):
         return ws
 
     def subscribe(self, websocket, channels=None, last=None, wait_for_dispatch=True):
-        """ Subscribe the websocket to the given channels.
+        """Subscribe the websocket to the given channels.
 
         :param websocket: The websocket of the client.
         :param channels: The list of channels to subscribe to.
@@ -100,18 +102,23 @@ class WebsocketCase(HttpCase):
             original_dispatch_bus_notifications(self, *args)
             dispatch_bus_notification_done.set()
 
-        with patch.object(Websocket, '_dispatch_bus_notifications', _mocked_dispatch_bus_notifications):
-            sub = {'event_name': 'subscribe', 'data': {
-                'channels': channels or [],
-            }}
+        with patch.object(
+            Websocket, "_dispatch_bus_notifications", _mocked_dispatch_bus_notifications
+        ):
+            sub = {
+                "event_name": "subscribe",
+                "data": {
+                    "channels": channels or [],
+                },
+            }
             if last is not None:
-                sub['data']['last'] = last
+                sub["data"]["last"] = last
             websocket.send(json.dumps(sub))
             if wait_for_dispatch:
                 dispatch_bus_notification_done.wait(timeout=5)
 
     def trigger_notification_dispatching(self, channels):
-        """ Notify the websockets subscribed to the given channels that new
+        """Notify the websockets subscribed to the given channels that new
         notifications are available. Usefull since the bus is not able to do
         it during tests.
         """
@@ -126,7 +133,7 @@ class WebsocketCase(HttpCase):
             websocket.trigger_notification_dispatching()
 
     def wait_remaining_websocket_connections(self):
-        """ Wait for the websocket connections to terminate. """
+        """Wait for the websocket connections to terminate."""
         for event in self._websocket_events:
             event.wait(5)
 
@@ -137,7 +144,7 @@ class WebsocketCase(HttpCase):
         opcode, payload = websocket.recv_data()
         # ensure it's a close frame
         self.assertEqual(opcode, 8)
-        code = struct.unpack('!H', payload[:2])[0]
+        code = struct.unpack("!H", payload[:2])[0]
         # ensure the close code is the one we expected
         self.assertEqual(code, expected_code)
         if expected_reason:

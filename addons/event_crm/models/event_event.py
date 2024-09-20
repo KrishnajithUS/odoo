@@ -9,16 +9,24 @@ class EventEvent(models.Model):
     _inherit = "event.event"
 
     lead_ids = fields.One2many(
-        'crm.lead', 'event_id', string="Leads", groups='sales_team.group_sale_salesman',
-        help="Leads generated from this event")
+        "crm.lead",
+        "event_id",
+        string="Leads",
+        groups="sales_team.group_sale_salesman",
+        help="Leads generated from this event",
+    )
     lead_count = fields.Integer(
-        string="# Leads", compute='_compute_lead_count', groups='sales_team.group_sale_salesman')
+        string="# Leads",
+        compute="_compute_lead_count",
+        groups="sales_team.group_sale_salesman",
+    )
 
-    @api.depends('lead_ids')
+    @api.depends("lead_ids")
     def _compute_lead_count(self):
-        lead_data = self.env['crm.lead']._read_group(
-            [('event_id', 'in', self.ids)],
-            ['event_id'], ['__count'],
+        lead_data = self.env["crm.lead"]._read_group(
+            [("event_id", "in", self.ids)],
+            ["event_id"],
+            ["__count"],
         )
         mapped_data = {event.id: count for event, count in lead_data}
         for event in self:

@@ -7,41 +7,52 @@ from odoo.osv import expression
 
 class LeaveReport(models.Model):
     _name = "hr.leave.report"
-    _description = 'Time Off Summary / Report'
+    _description = "Time Off Summary / Report"
     _auto = False
     _order = "date_from DESC, employee_id"
 
-    employee_id = fields.Many2one('hr.employee', string="Employee", readonly=True)
-    leave_id = fields.Many2one('hr.leave', string="Time Off Request", readonly=True)
-    name = fields.Char('Description', readonly=True)
-    number_of_days = fields.Float('Number of Days', readonly=True)
-    leave_type = fields.Selection([
-        ('allocation', 'Allocation'),
-        ('request', 'Time Off')
-        ], string='Request Type', readonly=True)
-    department_id = fields.Many2one('hr.department', string='Department', readonly=True)
-    category_id = fields.Many2one('hr.employee.category', string='Employee Tag', readonly=True)
-    holiday_status_id = fields.Many2one("hr.leave.type", string="Time Off Type", readonly=True)
-    state = fields.Selection([
-        ('draft', 'To Submit'),
-        ('cancel', 'Cancelled'),
-        ('confirm', 'To Approve'),
-        ('refuse', 'Refused'),
-        ('validate1', 'Second Approval'),
-        ('validate', 'Approved')
-        ], string='Status', readonly=True)
-    holiday_type = fields.Selection([
-        ('employee', 'By Employee'),
-        ('category', 'By Employee Tag')
-    ], string='Allocation Mode', readonly=True)
-    date_from = fields.Datetime('Start Date', readonly=True)
-    date_to = fields.Datetime('End Date', readonly=True)
-    company_id = fields.Many2one('res.company', string="Company", readonly=True)
+    employee_id = fields.Many2one("hr.employee", string="Employee", readonly=True)
+    leave_id = fields.Many2one("hr.leave", string="Time Off Request", readonly=True)
+    name = fields.Char("Description", readonly=True)
+    number_of_days = fields.Float("Number of Days", readonly=True)
+    leave_type = fields.Selection(
+        [("allocation", "Allocation"), ("request", "Time Off")],
+        string="Request Type",
+        readonly=True,
+    )
+    department_id = fields.Many2one("hr.department", string="Department", readonly=True)
+    category_id = fields.Many2one(
+        "hr.employee.category", string="Employee Tag", readonly=True
+    )
+    holiday_status_id = fields.Many2one(
+        "hr.leave.type", string="Time Off Type", readonly=True
+    )
+    state = fields.Selection(
+        [
+            ("draft", "To Submit"),
+            ("cancel", "Cancelled"),
+            ("confirm", "To Approve"),
+            ("refuse", "Refused"),
+            ("validate1", "Second Approval"),
+            ("validate", "Approved"),
+        ],
+        string="Status",
+        readonly=True,
+    )
+    holiday_type = fields.Selection(
+        [("employee", "By Employee"), ("category", "By Employee Tag")],
+        string="Allocation Mode",
+        readonly=True,
+    )
+    date_from = fields.Datetime("Start Date", readonly=True)
+    date_to = fields.Datetime("End Date", readonly=True)
+    company_id = fields.Many2one("res.company", string="Company", readonly=True)
 
     def init(self):
-        tools.drop_view_if_exists(self._cr, 'hr_leave_report')
+        tools.drop_view_if_exists(self._cr, "hr_leave_report")
 
-        self._cr.execute("""
+        self._cr.execute(
+            """
             CREATE or REPLACE view hr_leave_report as (
                 SELECT row_number() over(ORDER BY leaves.employee_id) as id,
                 leaves.leave_id as leave_id,
@@ -89,14 +100,17 @@ class LeaveReport(models.Model):
                 request.active is True
                 ) leaves
             );
-        """)
+        """
+        )
 
     def action_open_record(self):
         self.ensure_one()
 
         return {
-            'type': 'ir.actions.act_window',
-            'view_mode': 'form',
-            'res_id': self.leave_id.id,
-            'res_model': 'hr.leave' if self.leave_type == 'request' else 'hr.leave.allocation',
+            "type": "ir.actions.act_window",
+            "view_mode": "form",
+            "res_id": self.leave_id.id,
+            "res_model": (
+                "hr.leave" if self.leave_type == "request" else "hr.leave.allocation"
+            ),
         }

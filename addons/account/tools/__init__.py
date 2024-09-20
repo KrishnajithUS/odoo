@@ -5,7 +5,7 @@ from .structured_reference import *
 
 
 class LegacyHTTPAdapter(requests.adapters.HTTPAdapter):
-    """ An adapter to allow unsafe legacy renegotiation necessary to connect to
+    """An adapter to allow unsafe legacy renegotiation necessary to connect to
     gravely outdated ETA production servers.
     """
 

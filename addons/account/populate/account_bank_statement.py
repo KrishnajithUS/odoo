@@ -15,7 +15,7 @@ class AccountBankStatement(models.Model):
     """Populate factory part for account.bank.statements."""
 
     _inherit = "account.bank.statement"
-    _populate_dependencies = ['account.bank.statement.line']
+    _populate_dependencies = ["account.bank.statement.line"]
 
     def _populate(self, size):
         """
@@ -23,12 +23,12 @@ class AccountBankStatement(models.Model):
         :param size:
         :return:
         """
-        rand = populate.Random('account_bank_statement+Populate')
+        rand = populate.Random("account_bank_statement+Populate")
 
-        read_group_res = self.env['account.bank.statement.line']._read_group(
-            [('statement_id', '=', False)],
-            ['journal_id'],
-            ['id:array_agg'],
+        read_group_res = self.env["account.bank.statement.line"]._read_group(
+            [("statement_id", "=", False)],
+            ["journal_id"],
+            ["id:array_agg"],
         )
 
         bank_statement_vals_list = []
@@ -43,13 +43,15 @@ class AccountBankStatement(models.Model):
                 if not statement_needed:
                     continue
 
-                bank_statement_vals_list.append({
-                    'name': f"statement_{len(bank_statement_vals_list) + 1}",
-                    'journal_id': journal.id,
-                    'line_ids': [Command.set(ids)],
-                })
+                bank_statement_vals_list.append(
+                    {
+                        "name": f"statement_{len(bank_statement_vals_list) + 1}",
+                        "journal_id": journal.id,
+                        "line_ids": [Command.set(ids)],
+                    }
+                )
 
-        return self.env['account.bank.statement'].create(bank_statement_vals_list)
+        return self.env["account.bank.statement"].create(bank_statement_vals_list)
 
 
 class AccountBankStatementLine(models.Model):
@@ -58,12 +60,12 @@ class AccountBankStatementLine(models.Model):
     _inherit = "account.bank.statement.line"
 
     _populate_sizes = {
-        'small': 100,
-        'medium': 10000,
-        'large': 200000,
+        "small": 100,
+        "medium": 10000,
+        "large": 200000,
     }
 
-    _populate_dependencies = ['account.journal', 'res.company', 'res.partner']
+    _populate_dependencies = ["account.journal", "res.company", "res.partner"]
 
     def _populate_factories(self):
         @lru_cache()
@@ -74,10 +76,16 @@ class AccountBankStatementLine(models.Model):
             :param company_id (int): the company to search partners for.
             :return (list<int>): the ids of partner the company has access to.
             """
-            return self.env['res.partner'].search([
-                *self.env['res.company']._check_company_domain(company_id),
-                ('id', 'in', self.env.registry.populated_models['res.partner']),
-            ]).ids
+            return (
+                self.env["res.partner"]
+                .search(
+                    [
+                        *self.env["res.company"]._check_company_domain(company_id),
+                        ("id", "in", self.env.registry.populated_models["res.partner"]),
+                    ]
+                )
+                .ids
+            )
 
         def get_partner(random, values, **kwargs):
             """Get a partner by selecting inside the list of partner a company has access to.
@@ -87,9 +95,13 @@ class AccountBankStatementLine(models.Model):
             :param values (dict): the values already selected for the record.
             :return (int): an id of a partner accessible by the company of the statement.
             """
-            company_id = self.env['account.journal'].browse(values['journal_id']).company_id.id
+            company_id = (
+                self.env["account.journal"].browse(values["journal_id"]).company_id.id
+            )
             partner = search_partner_ids(company_id)
-            return random.choices(partner + [False], [1/len(partner)] * len(partner) + [1])[0]
+            return random.choices(
+                partner + [False], [1 / len(partner)] * len(partner) + [1]
+            )[0]
 
         def get_amount(random, **kwargs):
             """Get a random amount between -1000 and 1000.
@@ -107,7 +119,11 @@ class AccountBankStatementLine(models.Model):
             :param random: seeded random number generator.
             :return (float): a number between amount / 10 and amount * 10.
             """
-            return random.uniform(0.1 * values['amount'], 10 * values['amount']) if values['foreign_currency_id'] else 0
+            return (
+                random.uniform(0.1 * values["amount"], 10 * values["amount"])
+                if values["foreign_currency_id"]
+                else 0
+            )
 
         def get_currency(random, values, **kwargs):
             """Get a random currency.
@@ -118,27 +134,42 @@ class AccountBankStatementLine(models.Model):
             :return (int, bool): the id of an active currency or False if it is the same currency as
                                  the lines's journal's currency.
             """
-            journal = self.env['account.journal'].browse(values['journal_id'])
-            currency = random.choice(self.env['res.currency'].search([('active', '=', True)]).ids)
-            return currency if currency != (journal.currency_id or journal.company_id.currency_id).id else False
+            journal = self.env["account.journal"].browse(values["journal_id"])
+            currency = random.choice(
+                self.env["res.currency"].search([("active", "=", True)]).ids
+            )
+            return (
+                currency
+                if currency
+                != (journal.currency_id or journal.company_id.currency_id).id
+                else False
+            )
 
-        company_ids = self.env['res.company'].search([
-            ('chart_template', '!=', False),
-            ('id', 'in', self.env.registry.populated_models['res.company']),
-        ])
+        company_ids = self.env["res.company"].search(
+            [
+                ("chart_template", "!=", False),
+                ("id", "in", self.env.registry.populated_models["res.company"]),
+            ]
+        )
         if not company_ids:
             return []
 
-        journal_ids = self.env['account.journal'].search([
-            *self.env['account.journal']._check_company_domain(company_ids),
-            ('type', 'in', ('cash', 'bank')),
-        ]).ids
+        journal_ids = (
+            self.env["account.journal"]
+            .search(
+                [
+                    *self.env["account.journal"]._check_company_domain(company_ids),
+                    ("type", "in", ("cash", "bank")),
+                ]
+            )
+            .ids
+        )
         return [
-            ('journal_id', populate.iterate(journal_ids)),
-            ('partner_id', populate.compute(get_partner)),
-            ('date', populate.randdatetime(relative_before=relativedelta(years=-4))),
-            ('payment_ref', populate.constant('transaction_{values[date]}_{counter}')),
-            ('amount', populate.compute(get_amount)),
-            ('foreign_currency_id', populate.compute(get_currency)),
-            ('amount_currency', populate.compute(get_amount_currency)),
+            ("journal_id", populate.iterate(journal_ids)),
+            ("partner_id", populate.compute(get_partner)),
+            ("date", populate.randdatetime(relative_before=relativedelta(years=-4))),
+            ("payment_ref", populate.constant("transaction_{values[date]}_{counter}")),
+            ("amount", populate.compute(get_amount)),
+            ("foreign_currency_id", populate.compute(get_currency)),
+            ("amount_currency", populate.compute(get_amount_currency)),
         ]

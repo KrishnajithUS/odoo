@@ -13,22 +13,28 @@ from contextlib import contextmanager
 
 
 def patch_api(func):
-    @patch.object(GoogleSync, '_google_insert', MagicMock(spec=GoogleSync._google_insert))
-    @patch.object(GoogleSync, '_google_delete', MagicMock(spec=GoogleSync._google_delete))
-    @patch.object(GoogleSync, '_google_patch', MagicMock(spec=GoogleSync._google_patch))
+    @patch.object(
+        GoogleSync, "_google_insert", MagicMock(spec=GoogleSync._google_insert)
+    )
+    @patch.object(
+        GoogleSync, "_google_delete", MagicMock(spec=GoogleSync._google_delete)
+    )
+    @patch.object(GoogleSync, "_google_patch", MagicMock(spec=GoogleSync._google_patch))
     def patched(self, *args, **kwargs):
         return func(self, *args, **kwargs)
+
     return patched
 
-@patch.object(User, '_get_google_calendar_token', lambda user: 'dummy-token')
+
+@patch.object(User, "_get_google_calendar_token", lambda user: "dummy-token")
 class TestSyncGoogle(HttpCase):
 
     def setUp(self):
         super().setUp()
-        self.google_service = GoogleCalendarService(self.env['google.service'])
+        self.google_service = GoogleCalendarService(self.env["google.service"])
         self.env.user.sudo().unpause_google_synchronization()
         self.organizer_user = new_test_user(self.env, login="organizer_user")
-        self.attendee_user = new_test_user(self.env, login='attendee_user')
+        self.attendee_user = new_test_user(self.env, login="attendee_user")
 
     @contextmanager
     def mock_datetime_and_now(self, mock_dt):
@@ -37,8 +43,7 @@ class TestSyncGoogle(HttpCase):
         in addition to standard datetime mocks. Used mainly to detect sync
         issues.
         """
-        with freeze_time(mock_dt), \
-                patch.object(self.env.cr, 'now', lambda: mock_dt):
+        with freeze_time(mock_dt), patch.object(self.env.cr, "now", lambda: mock_dt):
             yield
 
     def assertGoogleEventDeleted(self, google_id):
@@ -51,11 +56,11 @@ class TestSyncGoogle(HttpCase):
 
     def assertGoogleEventInserted(self, values, timeout=None):
         expected_args = (values,)
-        expected_kwargs = {'timeout': timeout} if timeout else {}
+        expected_kwargs = {"timeout": timeout} if timeout else {}
         GoogleSync._google_insert.assert_called_once()
         args, kwargs = GoogleSync._google_insert.call_args
-        args[1:][0].pop('conferenceData', None)
-        self.assertEqual(args[1:], expected_args) # skip Google service arg
+        args[1:][0].pop("conferenceData", None)
+        self.assertEqual(args[1:], expected_args)  # skip Google service arg
         self.assertEqual(kwargs, expected_kwargs)
 
     def assertGoogleEventNotInserted(self):
@@ -63,10 +68,10 @@ class TestSyncGoogle(HttpCase):
 
     def assertGoogleEventPatched(self, google_id, values, timeout=None):
         expected_args = (google_id, values)
-        expected_kwargs = {'timeout': timeout} if timeout else {}
+        expected_kwargs = {"timeout": timeout} if timeout else {}
         GoogleSync._google_patch.assert_called_once()
         args, kwargs = GoogleSync._google_patch.call_args
-        self.assertEqual(args[1:], expected_args) # skip Google service arg
+        self.assertEqual(args[1:], expected_args)  # skip Google service arg
         self.assertEqual(kwargs, expected_kwargs)
 
     def assertGoogleEventNotPatched(self):
@@ -96,4 +101,4 @@ class TestSyncGoogle(HttpCase):
     def assertGoogleEventHasNoConferenceData(self):
         GoogleSync._google_insert.assert_called_once()
         args, _ = GoogleSync._google_insert.call_args
-        self.assertFalse(args[1].get('conferenceData', False))
+        self.assertFalse(args[1].get("conferenceData", False))

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 {
-    'name': "Import/Export electronic invoices with UBL/CII",
-    'version': '1.0',
-    'category': 'Accounting/Accounting',
-    'description': """
+    "name": "Import/Export electronic invoices with UBL/CII",
+    "version": "1.0",
+    "category": "Accounting/Accounting",
+    "description": """
 Electronic invoicing module
 ===========================
 
@@ -22,16 +22,16 @@ Note also that in order for Chorus Pro to automatically detect the "PDF/A-3 (Fac
 the "Factur-X PDF/A-3" option on the journal. This option will also validate the xml against the Factur-X and Chorus
 Pro rules and show the errors.
     """,
-    'depends': ['account'],
-    'data': [
-        'data/cii_22_templates.xml',
-        'data/ubl_20_templates.xml',
-        'data/ubl_21_templates.xml',
-        'views/res_config_settings_views.xml',
-        'views/res_partner_views.xml',
-        'wizard/account_move_send_views.xml',
+    "depends": ["account"],
+    "data": [
+        "data/cii_22_templates.xml",
+        "data/ubl_20_templates.xml",
+        "data/ubl_21_templates.xml",
+        "views/res_config_settings_views.xml",
+        "views/res_partner_views.xml",
+        "wizard/account_move_send_views.xml",
     ],
-    'installable': True,
-    'auto_install': True,
-    'license': 'LGPL-3',
+    "installable": True,
+    "auto_install": True,
+    "license": "LGPL-3",
 }

@@ -23,19 +23,29 @@ class PortalAccount(portal.PortalAccount, PaymentPortal):
         invoice_company = invoice.company_id or request.env.company
 
         # Select all the payment methods and tokens that match the payment context.
-        providers_sudo = request.env['payment.provider'].sudo()._get_compatible_providers(
-            invoice_company.id,
-            partner_sudo.id,
-            invoice.amount_total,
-            currency_id=invoice.currency_id.id
+        providers_sudo = (
+            request.env["payment.provider"]
+            .sudo()
+            ._get_compatible_providers(
+                invoice_company.id,
+                partner_sudo.id,
+                invoice.amount_total,
+                currency_id=invoice.currency_id.id,
+            )
         )  # In sudo mode to read the fields of providers and partner (if logged out).
-        payment_methods_sudo = request.env['payment.method'].sudo()._get_compatible_payment_methods(
-            providers_sudo.ids,
-            partner_sudo.id,
-            currency_id=invoice.currency_id.id,
+        payment_methods_sudo = (
+            request.env["payment.method"]
+            .sudo()
+            ._get_compatible_payment_methods(
+                providers_sudo.ids,
+                partner_sudo.id,
+                currency_id=invoice.currency_id.id,
+            )
         )  # In sudo mode to read the fields of providers.
-        tokens_sudo = request.env['payment.token'].sudo()._get_available_tokens(
-            providers_sudo.ids, partner_sudo.id
+        tokens_sudo = (
+            request.env["payment.token"]
+            .sudo()
+            ._get_available_tokens(providers_sudo.ids, partner_sudo.id)
         )  # In sudo mode to read the partner's tokens (if logged out) and provider fields.
 
         # Make sure that the partner's company matches the invoice's company.
@@ -44,24 +54,24 @@ class PortalAccount(portal.PortalAccount, PaymentPortal):
         )
 
         portal_page_values = {
-            'company_mismatch': company_mismatch,
-            'expected_company': invoice_company,
+            "company_mismatch": company_mismatch,
+            "expected_company": invoice_company,
         }
         payment_form_values = {
-            'show_tokenize_input_mapping': PaymentPortal._compute_show_tokenize_input_mapping(
+            "show_tokenize_input_mapping": PaymentPortal._compute_show_tokenize_input_mapping(
                 providers_sudo
             ),
         }
         payment_context = {
-            'amount': invoice.amount_residual,
-            'currency': invoice.currency_id,
-            'partner_id': partner_sudo.id,
-            'providers_sudo': providers_sudo,
-            'payment_methods_sudo': payment_methods_sudo,
-            'tokens_sudo': tokens_sudo,
-            'transaction_route': f'/invoice/transaction/{invoice.id}/',
-            'landing_route': invoice.get_portal_url(),
-            'access_token': access_token,
+            "amount": invoice.amount_residual,
+            "currency": invoice.currency_id,
+            "partner_id": partner_sudo.id,
+            "providers_sudo": providers_sudo,
+            "payment_methods_sudo": payment_methods_sudo,
+            "tokens_sudo": tokens_sudo,
+            "transaction_route": f"/invoice/transaction/{invoice.id}/",
+            "landing_route": invoice.get_portal_url(),
+            "access_token": access_token,
         }
         values.update(
             **portal_page_values,

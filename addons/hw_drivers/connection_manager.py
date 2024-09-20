@@ -32,26 +32,37 @@ class ConnectionManager(Thread):
 
     def _connect_box(self):
         data = {
-            'jsonrpc': 2.0,
-            'params': {
-                'pairing_code': self.pairing_code,
-                'pairing_uuid': self.pairing_uuid,
-            }
+            "jsonrpc": 2.0,
+            "params": {
+                "pairing_code": self.pairing_code,
+                "pairing_uuid": self.pairing_uuid,
+            },
         }
 
         try:
             urllib3.disable_warnings()
-            req = requests.post('https://iot-proxy.odoo.com/odoo-enterprise/iot/connect-box', json=data, verify=False)
-            result = req.json().get('result', {})
-            if all(key in result for key in ['pairing_code', 'pairing_uuid']):
-                self.pairing_code = result['pairing_code']
-                self.pairing_uuid = result['pairing_uuid']
+            req = requests.post(
+                "https://iot-proxy.odoo.com/odoo-enterprise/iot/connect-box",
+                json=data,
+                verify=False,
+            )
+            result = req.json().get("result", {})
+            if all(key in result for key in ["pairing_code", "pairing_uuid"]):
+                self.pairing_code = result["pairing_code"]
+                self.pairing_uuid = result["pairing_uuid"]
                 self._refresh_displays()
-            elif all(key in result for key in ['url', 'token', 'db_uuid', 'enterprise_code']):
-                self._connect_to_server(result['url'], result['token'], result['db_uuid'], result['enterprise_code'])
+            elif all(
+                key in result for key in ["url", "token", "db_uuid", "enterprise_code"]
+            ):
+                self._connect_to_server(
+                    result["url"],
+                    result["token"],
+                    result["db_uuid"],
+                    result["enterprise_code"],
+                )
         except Exception as e:
-            _logger.error('Could not reach iot-proxy.odoo.com')
-            _logger.error('A error encountered : %s ' % e)
+            _logger.error("Could not reach iot-proxy.odoo.com")
+            _logger.error("A error encountered : %s " % e)
 
     def _connect_to_server(self, url, token, db_uuid, enterprise_code):
         # Save DB URL and token
@@ -64,10 +75,8 @@ class ConnectionManager(Thread):
     def _refresh_displays(self):
         """Refresh all displays to hide the pairing code"""
         for d in iot_devices:
-            if iot_devices[d].device_type == 'display':
-                iot_devices[d].action({
-                    'action': 'display_refresh'
-                })
+            if iot_devices[d].device_type == "display":
+                iot_devices[d].action({"action": "display_refresh"})
 
 
 connection_manager = ConnectionManager()

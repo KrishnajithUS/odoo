@@ -8,36 +8,40 @@ from odoo.addons.base.models.res_partner import _tz_get
 
 class LeaveReportCalendar(models.Model):
     _name = "hr.leave.report.calendar"
-    _description = 'Time Off Calendar'
+    _description = "Time Off Calendar"
     _auto = False
     _order = "start_datetime DESC, employee_id"
 
-    name = fields.Char(string='Name', readonly=True)
-    start_datetime = fields.Datetime(string='From', readonly=True)
-    stop_datetime = fields.Datetime(string='To', readonly=True)
+    name = fields.Char(string="Name", readonly=True)
+    start_datetime = fields.Datetime(string="From", readonly=True)
+    stop_datetime = fields.Datetime(string="To", readonly=True)
     tz = fields.Selection(_tz_get, string="Timezone", readonly=True)
-    duration = fields.Float(string='Duration', readonly=True)
-    employee_id = fields.Many2one('hr.employee', readonly=True)
-    department_id = fields.Many2one('hr.department', readonly=True)
-    job_id = fields.Many2one('hr.job', readonly=True)
-    company_id = fields.Many2one('res.company', readonly=True)
-    state = fields.Selection([
-        ('draft', 'To Submit'),
-        ('cancel', 'Cancelled'),  # YTI This state seems to be unused. To remove
-        ('confirm', 'To Approve'),
-        ('refuse', 'Refused'),
-        ('validate1', 'Second Approval'),
-        ('validate', 'Approved')
-    ], readonly=True)
+    duration = fields.Float(string="Duration", readonly=True)
+    employee_id = fields.Many2one("hr.employee", readonly=True)
+    department_id = fields.Many2one("hr.department", readonly=True)
+    job_id = fields.Many2one("hr.job", readonly=True)
+    company_id = fields.Many2one("res.company", readonly=True)
+    state = fields.Selection(
+        [
+            ("draft", "To Submit"),
+            ("cancel", "Cancelled"),  # YTI This state seems to be unused. To remove
+            ("confirm", "To Approve"),
+            ("refuse", "Refused"),
+            ("validate1", "Second Approval"),
+            ("validate", "Approved"),
+        ],
+        readonly=True,
+    )
 
-    is_hatched = fields.Boolean('Hatched', readonly=True)
-    is_striked = fields.Boolean('Striked', readonly=True)
+    is_hatched = fields.Boolean("Hatched", readonly=True)
+    is_striked = fields.Boolean("Striked", readonly=True)
 
-    is_absent = fields.Boolean(related='employee_id.is_absent')
+    is_absent = fields.Boolean(related="employee_id.is_absent")
 
     def init(self):
-        tools.drop_view_if_exists(self._cr, 'hr_leave_report_calendar')
-        self._cr.execute("""CREATE OR REPLACE VIEW hr_leave_report_calendar AS
+        tools.drop_view_if_exists(self._cr, "hr_leave_report_calendar")
+        self._cr.execute(
+            """CREATE OR REPLACE VIEW hr_leave_report_calendar AS
         (SELECT 
             hl.id AS id,
             CONCAT(em.name, ': ', hl.duration_display) AS name,
@@ -71,15 +75,22 @@ class LeaveReportCalendar(models.Model):
             hl.state IN ('confirm', 'validate', 'validate1')
             AND hl.active IS TRUE
         );
-        """)
+        """
+        )
 
     def _fetch_query(self, query, fields):
         records = super()._fetch_query(query, fields)
-        if self.env.context.get('hide_employee_name') and 'employee_id' in self.env.context.get('group_by', []):
-            self.env.cache.update(records, self._fields['name'], [
-                record.name.split(':')[-1].strip()
-                for record in records.with_user(SUPERUSER_ID)
-            ])
+        if self.env.context.get(
+            "hide_employee_name"
+        ) and "employee_id" in self.env.context.get("group_by", []):
+            self.env.cache.update(
+                records,
+                self._fields["name"],
+                [
+                    record.name.split(":")[-1].strip()
+                    for record in records.with_user(SUPERUSER_ID)
+                ],
+            )
         return records
 
     @api.model

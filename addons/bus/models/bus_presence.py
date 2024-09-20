@@ -16,23 +16,32 @@ PRESENCE_OUTDATED_TIMER = 12 * 60 * 60  # 12 hours
 
 
 class BusPresence(models.Model):
-    """ User Presence
-        Its status is 'online', 'away' or 'offline'. This model should be a one2one, but is not
-        attached to res_users to avoid database concurrence errors. Since the 'update_presence' method is executed
-        at each poll, if the user have multiple opened tabs, concurrence errors can happend, but are 'muted-logged'.
+    """User Presence
+    Its status is 'online', 'away' or 'offline'. This model should be a one2one, but is not
+    attached to res_users to avoid database concurrence errors. Since the 'update_presence' method is executed
+    at each poll, if the user have multiple opened tabs, concurrence errors can happend, but are 'muted-logged'.
     """
 
-    _name = 'bus.presence'
-    _description = 'User Presence'
+    _name = "bus.presence"
+    _description = "User Presence"
     _log_access = False
 
-    user_id = fields.Many2one('res.users', 'Users', ondelete='cascade')
-    last_poll = fields.Datetime('Last Poll', default=lambda self: fields.Datetime.now())
-    last_presence = fields.Datetime('Last Presence', default=lambda self: fields.Datetime.now())
-    status = fields.Selection([('online', 'Online'), ('away', 'Away'), ('offline', 'Offline')], 'IM Status', default='offline')
+    user_id = fields.Many2one("res.users", "Users", ondelete="cascade")
+    last_poll = fields.Datetime("Last Poll", default=lambda self: fields.Datetime.now())
+    last_presence = fields.Datetime(
+        "Last Presence", default=lambda self: fields.Datetime.now()
+    )
+    status = fields.Selection(
+        [("online", "Online"), ("away", "Away"), ("offline", "Offline")],
+        "IM Status",
+        default="offline",
+    )
 
     def init(self):
-        self.env.cr.execute("CREATE UNIQUE INDEX IF NOT EXISTS bus_presence_user_unique ON %s (user_id) WHERE user_id IS NOT NULL" % self._table)
+        self.env.cr.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS bus_presence_user_unique ON %s (user_id) WHERE user_id IS NOT NULL"
+            % self._table
+        )
 
     def create(self, values):
         presences = super().create(values)
@@ -41,9 +50,13 @@ class BusPresence(models.Model):
         return presences
 
     def write(self, values):
-        status_by_user = {presence._get_identity_field_name(): presence.status for presence in self}
+        status_by_user = {
+            presence._get_identity_field_name(): presence.status for presence in self
+        }
         result = super().write(values)
-        updated = self.filtered(lambda p: status_by_user[p._get_identity_field_name()] != p.status)
+        updated = self.filtered(
+            lambda p: status_by_user[p._get_identity_field_name()] != p.status
+        )
         updated._invalidate_im_status()
         updated._send_presence()
         return result
@@ -54,16 +67,20 @@ class BusPresence(models.Model):
 
     @api.model
     def update_presence(self, inactivity_period, identity_field, identity_value):
-        """ Updates the last_poll and last_presence of the current user
-            :param inactivity_period: duration in milliseconds
+        """Updates the last_poll and last_presence of the current user
+        :param inactivity_period: duration in milliseconds
         """
         # This method is called in method _poll() and cursor is closed right
         # after; see bus/controllers/main.py.
         try:
             # Hide transaction serialization errors, which can be ignored, the presence update is not essential
             # The errors are supposed from presence.write(...) call only
-            with tools.mute_logger('odoo.sql_db'):
-                self._update_presence(inactivity_period=inactivity_period, identity_field=identity_field, identity_value=identity_value)
+            with tools.mute_logger("odoo.sql_db"):
+                self._update_presence(
+                    inactivity_period=inactivity_period,
+                    identity_field=identity_field,
+                    identity_value=identity_value,
+                )
                 # commit on success
                 self.env.cr.commit()
         except OperationalError as e:
@@ -125,5 +142,11 @@ class BusPresence(models.Model):
     @api.autovacuum
     def _gc_bus_presence(self):
         self.search(
-            [("last_poll", "<", datetime.now() - timedelta(seconds=PRESENCE_OUTDATED_TIMER))]
+            [
+                (
+                    "last_poll",
+                    "<",
+                    datetime.now() - timedelta(seconds=PRESENCE_OUTDATED_TIMER),
+                )
+            ]
         ).unlink()

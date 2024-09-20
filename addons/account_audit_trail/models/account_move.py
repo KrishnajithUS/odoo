@@ -15,20 +15,26 @@ class AccountMove(models.Model):
 
     @api.ondelete(at_uninstall=False)
     def _unlink_account_audit_trail_except_once_post(self):
-        if not self._context.get('force_delete') and any(
+        if not self._context.get("force_delete") and any(
             move.posted_before and move.company_id.check_account_audit_trail
             for move in self
         ):
-            raise UserError(_("To keep the audit trail, you can not delete journal entries once they have been posted.\nInstead, you can cancel the journal entry."))
+            raise UserError(
+                _(
+                    "To keep the audit trail, you can not delete journal entries once they have been posted.\nInstead, you can cancel the journal entry."
+                )
+            )
 
     def unlink(self):
-        if self.env.context.get('soft_delete'):
+        if self.env.context.get("soft_delete"):
             self.button_cancel()
             return True
         # Add logger here because in api ondelete account.move.line is deleted and we can't get total amount
         logger_msg = False
-        if any(m.posted_before and m.company_id.check_account_audit_trail for m in self):
-            if self._context.get('force_delete'):
+        if any(
+            m.posted_before and m.company_id.check_account_audit_trail for m in self
+        ):
+            if self._context.get("force_delete"):
                 moves_details = []
                 for move in self:
                     entry_details = "{move_name} ({move_id}) amount {amount_total} {currency} and partner {partner_name}".format(
@@ -50,9 +56,11 @@ class AccountMove(models.Model):
                         )
                         for account, balance in account_balances_per_account.items()
                     )
-                    moves_details.append("{entry_details}\n{account_details}".format(
-                        entry_details=entry_details, account_details=account_details
-                    ))
+                    moves_details.append(
+                        "{entry_details}\n{account_details}".format(
+                            entry_details=entry_details, account_details=account_details
+                        )
+                    )
                 logger_msg = "\nForce deleted Journal Entries by {user_name} ({user_id})\nEntries\n{moves_details}".format(
                     user_name=self.env.user.name,
                     user_id=self.env.user.id,

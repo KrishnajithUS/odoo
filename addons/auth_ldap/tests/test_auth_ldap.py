@@ -23,6 +23,7 @@ class TestAuthLDAP(BaseCase):
         def remove_ldap_user():
             with self.registry.cursor() as cr:
                 cr.execute("DELETE FROM res_users WHERE login = 'test_ldap_user'")
+
         self.addCleanup(remove_ldap_user)
 
     def test_auth_ldap(self):
@@ -63,8 +64,11 @@ class TestAuthLDAP(BaseCase):
         ).text
         csrf = re.search(r'csrf_token: "(\w*?)"', body).group(1)
 
-        with patch.object(self.registry["res.company.ldap"], "_get_ldap_dicts", _get_ldap_dicts),\
-            patch.object(self.registry["res.company.ldap"], "_authenticate", _authenticate):
+        with patch.object(
+            self.registry["res.company.ldap"], "_get_ldap_dicts", _get_ldap_dicts
+        ), patch.object(
+            self.registry["res.company.ldap"], "_authenticate", _authenticate
+        ):
             res = self.opener.post(
                 f"http://{HOST}:{odoo.tools.config['http_port']}/web/login",
                 data={
@@ -77,10 +81,12 @@ class TestAuthLDAP(BaseCase):
 
         session = odoo.http.root.session_store.get(res.cookies["session_id"])
         self.assertEqual(
-            session.sid, res.cookies["session_id"], "A session must exist at this point")
+            session.sid, res.cookies["session_id"], "A session must exist at this point"
+        )
 
         with self.registry.cursor() as cr:
             cr.execute(
                 "SELECT id FROM res_users WHERE login = %s and id = %s",
-                ("test_ldap_user", session.uid))
+                ("test_ldap_user", session.uid),
+            )
             self.assertTrue(cr.rowcount, "User should be present")

@@ -9,35 +9,40 @@ class TestHrFleetDriver(common.TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
 
-        cls.test_employee = cls.env['hr.employee'].create({
-            'name': 'Test Employee'
-        })
+        cls.test_employee = cls.env["hr.employee"].create({"name": "Test Employee"})
 
-        cls.test_user = cls.env['res.users'].create({
-            'login': 'test',
-            'name': 'The King',
-            'email': 'noop@example.com',
-        })
+        cls.test_user = cls.env["res.users"].create(
+            {
+                "login": "test",
+                "name": "The King",
+                "email": "noop@example.com",
+            }
+        )
 
-        cls.brand = cls.env["fleet.vehicle.model.brand"].create({
-            "name": "Audi",
-        })
+        cls.brand = cls.env["fleet.vehicle.model.brand"].create(
+            {
+                "name": "Audi",
+            }
+        )
 
-        cls.model = cls.env["fleet.vehicle.model"].create({
-            "brand_id": cls.brand.id,
-            "name": "A3",
-        })
+        cls.model = cls.env["fleet.vehicle.model"].create(
+            {
+                "brand_id": cls.brand.id,
+                "name": "A3",
+            }
+        )
 
-        cls.car = cls.env["fleet.vehicle"].create({
-            "model_id": cls.model.id,
-            "future_driver_id": cls.test_employee.work_contact_id.id,
-            "plan_to_change_car": False
-        })
+        cls.car = cls.env["fleet.vehicle"].create(
+            {
+                "model_id": cls.model.id,
+                "future_driver_id": cls.test_employee.work_contact_id.id,
+                "plan_to_change_car": False,
+            }
+        )
 
-        cls.car2 = cls.env["fleet.vehicle"].create({
-            "model_id": cls.model.id,
-            "plan_to_change_car": False
-        })
+        cls.car2 = cls.env["fleet.vehicle"].create(
+            {"model_id": cls.model.id, "plan_to_change_car": False}
+        )
 
     def test_driver_sync_with_employee(self):
         """
@@ -57,9 +62,11 @@ class TestHrFleetDriver(common.TransactionCase):
         """
         self.assertEqual(self.car2.future_driver_id.id, False)
         self.assertEqual(self.car2.driver_id.id, False)
-        self.env['hr.employee'].create({
-            'name': 'Test Employee 2',
-            'user_id': self.test_user.id,
-        })
+        self.env["hr.employee"].create(
+            {
+                "name": "Test Employee 2",
+                "user_id": self.test_user.id,
+            }
+        )
         self.assertEqual(self.car2.future_driver_id.id, False)
         self.assertEqual(self.car2.driver_id.id, False)

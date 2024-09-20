@@ -31,16 +31,17 @@ inside of #99667 is to use the request.borrow_request context manager to
 temporary hide the incoming http request.
 """
 
+
 class IrQweb(models.AbstractModel):
     _inherit = "ir.qweb"
 
     def _prepare_environment(self, values):
         irQweb = super()._prepare_environment(values)
-        values['slug'] = slug
-        values['unslug_url'] = unslug_url
+        values["slug"] = slug
+        values["unslug_url"] = unslug_url
 
-        if not irQweb.env.context.get('minimal_qcontext') and request:
-            if not hasattr(request, 'is_frontend'):
+        if not irQweb.env.context.get("minimal_qcontext") and request:
+            if not hasattr(request, "is_frontend"):
                 _logger.warning(BAD_REQUEST, stack_info=True)
             elif request.is_frontend:
                 return irQweb._prepare_frontend_environment(values)
@@ -48,5 +49,5 @@ class IrQweb(models.AbstractModel):
         return irQweb
 
     def _prepare_frontend_environment(self, values):
-        values['url_for'] = url_for
+        values["url_for"] = url_for
         return self

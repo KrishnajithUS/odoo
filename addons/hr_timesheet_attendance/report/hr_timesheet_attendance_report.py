@@ -5,11 +5,11 @@ from odoo import api, fields, models, tools
 
 
 class TimesheetAttendance(models.Model):
-    _name = 'hr.timesheet.attendance.report'
+    _name = "hr.timesheet.attendance.report"
     _auto = False
-    _description = 'Timesheet Attendance Report'
+    _description = "Timesheet Attendance Report"
 
-    employee_id = fields.Many2one('hr.employee', readonly=True)
+    employee_id = fields.Many2one("hr.employee", readonly=True)
     date = fields.Date(readonly=True)
     total_timesheet = fields.Float("Timesheets Hours", readonly=True)
     total_attendance = fields.Float("Attendance Hours", readonly=True)
@@ -17,11 +17,12 @@ class TimesheetAttendance(models.Model):
     timesheets_cost = fields.Float("Timesheet Cost", readonly=True)
     attendance_cost = fields.Float("Attendance Cost", readonly=True)
     cost_difference = fields.Float("Cost Difference", readonly=True)
-    company_id = fields.Many2one('res.company', string='Company', readonly=True)
+    company_id = fields.Many2one("res.company", string="Company", readonly=True)
 
     def init(self):
         tools.drop_view_if_exists(self.env.cr, self._table)
-        self._cr.execute("""CREATE OR REPLACE VIEW %s AS (
+        self._cr.execute(
+            """CREATE OR REPLACE VIEW %s AS (
             SELECT
                 max(id) AS id,
                 t.employee_id,
@@ -60,12 +61,29 @@ class TimesheetAttendance(models.Model):
             GROUP BY t.employee_id, t.date, t.company_id, t.emp_cost
             ORDER BY t.date
         )
-        """ % self._table)
+        """
+            % self._table
+        )
 
     @api.model
-    def read_group(self, domain, fields, groupby, offset=0, limit=None, orderby=False, lazy=True):
+    def read_group(
+        self, domain, fields, groupby, offset=0, limit=None, orderby=False, lazy=True
+    ):
         if not orderby and groupby:
             orderby_list = [groupby] if isinstance(groupby, str) else groupby
-            orderby_list = [field.split(':')[0] for field in orderby_list]
-            orderby = ','.join([f"{field} desc" if field == 'date' else field for field in orderby_list])
-        return super().read_group(domain, fields, groupby, offset=offset, limit=limit, orderby=orderby, lazy=lazy)
+            orderby_list = [field.split(":")[0] for field in orderby_list]
+            orderby = ",".join(
+                [
+                    f"{field} desc" if field == "date" else field
+                    for field in orderby_list
+                ]
+            )
+        return super().read_group(
+            domain,
+            fields,
+            groupby,
+            offset=offset,
+            limit=limit,
+            orderby=orderby,
+            lazy=lazy,
+        )

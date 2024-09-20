@@ -12,28 +12,40 @@ class TestResetPassword(HttpCase):
     @classmethod
     def setUpClass(cls):
         super(TestResetPassword, cls).setUpClass()
-        cls.test_user = cls.env['res.users'].create({
-            'login': 'test',
-            'name': 'The King',
-            'email': 'noop@example.com',
-        })
+        cls.test_user = cls.env["res.users"].create(
+            {
+                "login": "test",
+                "name": "The King",
+                "email": "noop@example.com",
+            }
+        )
 
     def test_reset_password(self):
         """
-            Test that first signup link and password reset link are different to accomodate for the different behaviour
-            on first signup if a password is already set user is redirected to login page when accessing that link again
-            'signup_email' is used in the web controller (web_auth_reset_password) to detect this behaviour
+        Test that first signup link and password reset link are different to accomodate for the different behaviour
+        on first signup if a password is already set user is redirected to login page when accessing that link again
+        'signup_email' is used in the web controller (web_auth_reset_password) to detect this behaviour
         """
 
-        self.assertEqual(self.test_user.email, url_parse(self.test_user.with_context(create_user=True).signup_url).decode_query()["signup_email"], "query must contain 'signup_email'")
+        self.assertEqual(
+            self.test_user.email,
+            url_parse(
+                self.test_user.with_context(create_user=True).signup_url
+            ).decode_query()["signup_email"],
+            "query must contain 'signup_email'",
+        )
 
         # Invalidate signup_url to skip signup process
         self.env.invalidate_all()
         self.test_user.action_reset_password()
 
-        self.assertNotIn("signup_email", url_parse(self.test_user.signup_url).decode_query(), "query should not contain 'signup_email'")
+        self.assertNotIn(
+            "signup_email",
+            url_parse(self.test_user.signup_url).decode_query(),
+            "query should not contain 'signup_email'",
+        )
 
-    @patch('odoo.addons.mail.models.mail_mail.MailMail.send')
+    @patch("odoo.addons.mail.models.mail_mail.MailMail.send")
     def test_reset_password_mail_server_error(self, mock_send):
         """
         Test that action_reset_password() method raises UserError and _action_reset_password() method raises MailDeliveryException.

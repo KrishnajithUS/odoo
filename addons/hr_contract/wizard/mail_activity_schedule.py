@@ -6,13 +6,15 @@ from dateutil.relativedelta import relativedelta
 
 
 class MailActivitySchedule(models.TransientModel):
-    _inherit = 'mail.activity.schedule'
+    _inherit = "mail.activity.schedule"
 
     def _compute_plan_date_deadline(self):
-        todo = self.filtered(lambda s: s.res_model == 'hr.employee')
+        todo = self.filtered(lambda s: s.res_model == "hr.employee")
         for scheduler in todo:
             selected_employees = scheduler._get_applied_on_records()
-            start_dates = selected_employees.filtered('first_contract_date').mapped('first_contract_date')
+            start_dates = selected_employees.filtered("first_contract_date").mapped(
+                "first_contract_date"
+            )
             if start_dates:
                 today = fields.Date.today()
                 planned_due_date = min(start_dates)

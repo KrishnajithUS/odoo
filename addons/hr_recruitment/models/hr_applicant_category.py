@@ -5,6 +5,7 @@ from odoo import fields, models
 
 from random import randint
 
+
 class ApplicantCategory(models.Model):
     _name = "hr.applicant.category"
     _description = "Category of applicant"
@@ -13,8 +14,8 @@ class ApplicantCategory(models.Model):
         return randint(1, 11)
 
     name = fields.Char("Tag Name", required=True)
-    color = fields.Integer(string='Color Index', default=_get_default_color)
+    color = fields.Integer(string="Color Index", default=_get_default_color)
 
     _sql_constraints = [
-        ('name_uniq', 'unique (name)', "Tag name already exists!"),
+        ("name_uniq", "unique (name)", "Tag name already exists!"),
     ]

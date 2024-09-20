@@ -19,69 +19,79 @@ def _cc_checker(country_code, code_type):
 
 
 def _re_sanitizer(expression):
-    return lambda endpoint: (res.group(0) if (res := re.search(expression, endpoint)) else endpoint)
+    return lambda endpoint: (
+        res.group(0) if (res := re.search(expression, endpoint)) else endpoint
+    )
 
 
 PEPPOL_ENDPOINT_RULES = {
-    '0007': _cc_checker('se', 'orgnr'),
-    '0088': ean.is_valid,
-    '0184': _cc_checker('dk', 'cvr'),
-    '0192': _cc_checker('no', 'orgnr'),
-    '0208': _cc_checker('be', 'vat'),
+    "0007": _cc_checker("se", "orgnr"),
+    "0088": ean.is_valid,
+    "0184": _cc_checker("dk", "cvr"),
+    "0192": _cc_checker("no", "orgnr"),
+    "0208": _cc_checker("be", "vat"),
 }
 
 PEPPOL_ENDPOINT_WARNINGS = {
-    '0151': _cc_checker('au', 'abn'),
-    '0201': lambda endpoint: bool(re.match('[0-9a-zA-Z]{6}$', endpoint)),
-    '0210': _cc_checker('it', 'codicefiscale'),
-    '0211': _cc_checker('it', 'iva'),
-    '9906': _cc_checker('it', 'iva'),
-    '9907': _cc_checker('it', 'codicefiscale'),
+    "0151": _cc_checker("au", "abn"),
+    "0201": lambda endpoint: bool(re.match("[0-9a-zA-Z]{6}$", endpoint)),
+    "0210": _cc_checker("it", "codicefiscale"),
+    "0211": _cc_checker("it", "iva"),
+    "9906": _cc_checker("it", "iva"),
+    "9907": _cc_checker("it", "codicefiscale"),
 }
 
 PEPPOL_ENDPOINT_SANITIZERS = {
-    '0007': _re_sanitizer(r'\d{10}'),
-    '0184': _re_sanitizer(r'\d{8}'),
-    '0192': _re_sanitizer(r'\d{9}'),
-    '0208': _re_sanitizer(r'\d{10}'),
+    "0007": _re_sanitizer(r"\d{10}"),
+    "0184": _re_sanitizer(r"\d{8}"),
+    "0192": _re_sanitizer(r"\d{9}"),
+    "0208": _re_sanitizer(r"\d{10}"),
 }
 
 
 class ResCompany(models.Model):
-    _inherit = 'res.company'
+    _inherit = "res.company"
 
     account_peppol_contact_email = fields.Char(
-        string='Primary contact email',
-        compute='_compute_account_peppol_contact_email', store=True, readonly=False,
-        help='Primary contact email for Peppol-related communication',
+        string="Primary contact email",
+        compute="_compute_account_peppol_contact_email",
+        store=True,
+        readonly=False,
+        help="Primary contact email for Peppol-related communication",
     )
     account_peppol_migration_key = fields.Char(string="Migration Key")
     account_peppol_phone_number = fields.Char(
-        string='Mobile number (for validation)',
-        compute='_compute_account_peppol_phone_number', store=True, readonly=False,
-        help='You will receive a verification code to this mobile number',
+        string="Mobile number (for validation)",
+        compute="_compute_account_peppol_phone_number",
+        store=True,
+        readonly=False,
+        help="You will receive a verification code to this mobile number",
     )
     account_peppol_proxy_state = fields.Selection(
         selection=[
-            ('not_registered', 'Not registered'),
-            ('not_verified', 'Not verified'),
-            ('sent_verification', 'Verification code sent'),
-            ('pending', 'Pending'),
-            ('active', 'Active'),
-            ('rejected', 'Rejected'),
-            ('canceled', 'Canceled'),
+            ("not_registered", "Not registered"),
+            ("not_verified", "Not verified"),
+            ("sent_verification", "Verification code sent"),
+            ("pending", "Pending"),
+            ("active", "Active"),
+            ("rejected", "Rejected"),
+            ("canceled", "Canceled"),
         ],
-        string='PEPPOL status', required=True, default='not_registered',
+        string="PEPPOL status",
+        required=True,
+        default="not_registered",
     )
-    is_account_peppol_participant = fields.Boolean(string='PEPPOL Participant')
-    peppol_eas = fields.Selection(related='partner_id.peppol_eas', readonly=False)
-    peppol_endpoint = fields.Char(related='partner_id.peppol_endpoint', readonly=False)
+    is_account_peppol_participant = fields.Boolean(string="PEPPOL Participant")
+    peppol_eas = fields.Selection(related="partner_id.peppol_eas", readonly=False)
+    peppol_endpoint = fields.Char(related="partner_id.peppol_endpoint", readonly=False)
     peppol_purchase_journal_id = fields.Many2one(
-        comodel_name='account.journal',
-        string='PEPPOL Purchase Journal',
-        domain=[('type', '=', 'purchase')],
-        compute='_compute_peppol_purchase_journal_id', store=True, readonly=False,
-        inverse='_inverse_peppol_purchase_journal_id',
+        comodel_name="account.journal",
+        string="PEPPOL Purchase Journal",
+        domain=[("type", "=", "purchase")],
+        compute="_compute_peppol_purchase_journal_id",
+        store=True,
+        readonly=False,
+        inverse="_inverse_peppol_purchase_journal_id",
     )
 
     # -------------------------------------------------------------------------
@@ -94,7 +104,8 @@ class ResCompany(models.Model):
         error_message = _(
             "Please enter the mobile number in the correct international format.\n"
             "For example: +32123456789, where +32 is the country code.\n"
-            "Currently, only European countries are supported.")
+            "Currently, only European countries are supported."
+        )
 
         if not phonenumbers:
             raise ValidationError(_("Please install the phonenumbers library."))
@@ -103,8 +114,8 @@ class ResCompany(models.Model):
         if not phone_number:
             return
 
-        if not phone_number.startswith('+'):
-            phone_number = f'+{phone_number}'
+        if not phone_number.startswith("+"):
+            phone_number = f"+{phone_number}"
 
         try:
             phone_nbr = phonenumbers.parse(phone_number)
@@ -112,51 +123,71 @@ class ResCompany(models.Model):
             raise ValidationError(error_message)
 
         country_code = phonenumbers.phonenumberutil.region_code_for_number(phone_nbr)
-        if country_code not in PEPPOL_LIST or not phonenumbers.is_valid_number(phone_nbr):
+        if country_code not in PEPPOL_LIST or not phonenumbers.is_valid_number(
+            phone_nbr
+        ):
             raise ValidationError(error_message)
 
     def _check_peppol_endpoint_number(self, warning=False):
         self.ensure_one()
         peppol_dict = PEPPOL_ENDPOINT_WARNINGS if warning else PEPPOL_ENDPOINT_RULES
 
-        return True if (endpoint_rule := peppol_dict.get(self.peppol_eas)) is None else endpoint_rule(self.peppol_endpoint)
+        return (
+            True
+            if (endpoint_rule := peppol_dict.get(self.peppol_eas)) is None
+            else endpoint_rule(self.peppol_endpoint)
+        )
 
     # -------------------------------------------------------------------------
     # CONSTRAINTS
     # -------------------------------------------------------------------------
 
-    @api.constrains('account_peppol_phone_number')
+    @api.constrains("account_peppol_phone_number")
     def _check_account_peppol_phone_number(self):
         for company in self:
             if company.account_peppol_phone_number:
                 company._sanitize_peppol_phone_number()
 
-    @api.constrains('peppol_endpoint')
+    @api.constrains("peppol_endpoint")
     def _check_peppol_endpoint(self):
         for company in self:
             if not company.peppol_endpoint:
                 continue
             if not company._check_peppol_endpoint_number(PEPPOL_ENDPOINT_RULES):
-                raise ValidationError(_("The Peppol endpoint identification number is not correct."))
+                raise ValidationError(
+                    _("The Peppol endpoint identification number is not correct.")
+                )
 
-    @api.constrains('peppol_purchase_journal_id')
+    @api.constrains("peppol_purchase_journal_id")
     def _check_peppol_purchase_journal_id(self):
         for company in self:
-            if company.peppol_purchase_journal_id and company.peppol_purchase_journal_id.type != 'purchase':
-                raise ValidationError(_("A purchase journal must be used to receive Peppol documents."))
+            if (
+                company.peppol_purchase_journal_id
+                and company.peppol_purchase_journal_id.type != "purchase"
+            ):
+                raise ValidationError(
+                    _("A purchase journal must be used to receive Peppol documents.")
+                )
 
     # -------------------------------------------------------------------------
     # COMPUTE METHODS
     # -------------------------------------------------------------------------
 
-    @api.depends('account_peppol_proxy_state')
+    @api.depends("account_peppol_proxy_state")
     def _compute_peppol_purchase_journal_id(self):
         for company in self:
-            if not company.peppol_purchase_journal_id and company.account_peppol_proxy_state not in ('not_registered', 'rejected'):
-                company.peppol_purchase_journal_id = self.env['account.journal'].search([
-                    *self.env['account.journal']._check_company_domain(company),
-                    ('type', '=', 'purchase'),
-                ], limit=1)
+            if (
+                not company.peppol_purchase_journal_id
+                and company.account_peppol_proxy_state
+                not in ("not_registered", "rejected")
+            ):
+                company.peppol_purchase_journal_id = self.env["account.journal"].search(
+                    [
+                        *self.env["account.journal"]._check_company_domain(company),
+                        ("type", "=", "purchase"),
+                    ],
+                    limit=1,
+                )
                 company.peppol_purchase_journal_id.is_peppol_journal = True
             else:
                 company.peppol_purchase_journal_id = company.peppol_purchase_journal_id
@@ -165,20 +196,22 @@ class ResCompany(models.Model):
         for company in self:
             # This avoid having 2 or more journals from the same company with
             # `is_peppol_journal` set to True (which could occur after changes).
-            journals_to_reset = self.env['account.journal'].search([
-                ('company_id', '=', company.id),
-                ('is_peppol_journal', '=', True),
-            ])
+            journals_to_reset = self.env["account.journal"].search(
+                [
+                    ("company_id", "=", company.id),
+                    ("is_peppol_journal", "=", True),
+                ]
+            )
             journals_to_reset.is_peppol_journal = False
             company.peppol_purchase_journal_id.is_peppol_journal = True
 
-    @api.depends('email')
+    @api.depends("email")
     def _compute_account_peppol_contact_email(self):
         for company in self:
             if not company.account_peppol_contact_email:
                 company.account_peppol_contact_email = company.email
 
-    @api.depends('phone')
+    @api.depends("phone")
     def _compute_account_peppol_phone_number(self):
         for company in self:
             if not company.account_peppol_phone_number:
@@ -195,11 +228,13 @@ class ResCompany(models.Model):
 
     @api.model
     def _sanitize_peppol_endpoint(self, vals, eas=False, endpoint=False):
-        if not (peppol_eas := vals.get('peppol_eas', eas)) or not (peppol_endpoint := vals.get('peppol_endpoint', endpoint)):
+        if not (peppol_eas := vals.get("peppol_eas", eas)) or not (
+            peppol_endpoint := vals.get("peppol_endpoint", endpoint)
+        ):
             return vals
 
         if sanitizer := PEPPOL_ENDPOINT_SANITIZERS.get(peppol_eas):
-            vals['peppol_endpoint'] = sanitizer(peppol_endpoint)
+            vals["peppol_endpoint"] = sanitizer(peppol_endpoint)
 
         return vals
 
@@ -211,5 +246,7 @@ class ResCompany(models.Model):
 
     def write(self, vals):
         for company in self:
-            vals = self._sanitize_peppol_endpoint(vals, company.peppol_eas, company.peppol_endpoint)
+            vals = self._sanitize_peppol_endpoint(
+                vals, company.peppol_eas, company.peppol_endpoint
+            )
         return super().write(vals)

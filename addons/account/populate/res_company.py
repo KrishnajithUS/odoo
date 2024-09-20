@@ -16,7 +16,7 @@ class ResCompany(models.Model):
     _inherit = "res.company"
 
     def _populate(self, size):
-        _logger.info('Loading Chart Template')
+        _logger.info("Loading Chart Template")
         records = super()._populate(size)
 
         # Load the a chart of accounts matching the country_id of the company for the 3 first created companies
@@ -35,5 +35,7 @@ class ResCompany(models.Model):
         # Note that we can still populate some new records on top of the CoA if it makes sense,
         # like account.journal for instance.
         for company in records[:3]:
-            self.env['account.chart.template'].try_loading(company=company, template_code=None)
+            self.env["account.chart.template"].try_loading(
+                company=company, template_code=None
+            )
         return records

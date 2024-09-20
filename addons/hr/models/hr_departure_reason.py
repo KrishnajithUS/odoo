@@ -16,13 +16,13 @@ class DepartureReason(models.Model):
 
     def _get_default_departure_reasons(self):
         return {
-            'fired': 342,
-            'resigned': 343,
-            'retired': 340,
+            "fired": 342,
+            "resigned": 343,
+            "retired": 340,
         }
 
     @api.ondelete(at_uninstall=False)
     def _unlink_except_default_departure_reasons(self):
         master_departure_codes = self._get_default_departure_reasons().values()
         if any(reason.reason_code in master_departure_codes for reason in self):
-            raise UserError(_('Default departure reasons cannot be deleted.'))
+            raise UserError(_("Default departure reasons cannot be deleted."))

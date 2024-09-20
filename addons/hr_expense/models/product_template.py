@@ -11,12 +11,17 @@ class ProductTemplate(models.Model):
     @api.model
     def default_get(self, fields):
         result = super(ProductTemplate, self).default_get(fields)
-        if self.env.context.get('default_can_be_expensed'):
-            result['supplier_taxes_id'] = False
+        if self.env.context.get("default_can_be_expensed"):
+            result["supplier_taxes_id"] = False
         return result
 
-    can_be_expensed = fields.Boolean(string="Can be Expensed", compute='_compute_can_be_expensed',
-        store=True, readonly=False, help="Specify whether the product can be selected in an expense.")
+    can_be_expensed = fields.Boolean(
+        string="Can be Expensed",
+        compute="_compute_can_be_expensed",
+        store=True,
+        readonly=False,
+        help="Specify whether the product can be selected in an expense.",
+    )
 
     def _auto_init(self):
         if not column_exists(self.env.cr, "product_template", "can_be_expensed"):
@@ -30,6 +35,8 @@ class ProductTemplate(models.Model):
             )
         return super()._auto_init()
 
-    @api.depends('type')
+    @api.depends("type")
     def _compute_can_be_expensed(self):
-        self.filtered(lambda p: p.type not in ['consu', 'service']).update({'can_be_expensed': False})
+        self.filtered(lambda p: p.type not in ["consu", "service"]).update(
+            {"can_be_expensed": False}
+        )

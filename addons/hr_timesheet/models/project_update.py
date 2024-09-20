@@ -14,7 +14,9 @@ class ProjectUpdate(models.Model):
 
     def _compute_timesheet_percentage(self):
         for update in self:
-            update.timesheet_percentage = update.allocated_time and round(update.timesheet_time * 100 / update.allocated_time)
+            update.timesheet_percentage = update.allocated_time and round(
+                update.timesheet_time * 100 / update.allocated_time
+            )
 
     def _compute_display_timesheet_stats(self):
         for update in self:
@@ -31,9 +33,11 @@ class ProjectUpdate(models.Model):
         for update in updates:
             project = update.project_id
             project.sudo().last_update_id = update
-            update.write({
-                "uom_id": encode_uom,
-                "allocated_time": round(project.allocated_hours / ratio),
-                "timesheet_time": round(project.total_timesheet_time / ratio),
-            })
+            update.write(
+                {
+                    "uom_id": encode_uom,
+                    "allocated_time": round(project.allocated_hours / ratio),
+                    "timesheet_time": round(project.total_timesheet_time / ratio),
+                }
+            )
         return updates

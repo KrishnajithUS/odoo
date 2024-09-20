@@ -24,15 +24,18 @@ _logger = logging.getLogger(__name__)
 TIMEOUT = 50
 
 # custom function to call instead of default PostgreSQL's `pg_notify`
-ODOO_NOTIFY_FUNCTION = os.getenv('ODOO_NOTIFY_FUNCTION', 'pg_notify')
+ODOO_NOTIFY_FUNCTION = os.getenv("ODOO_NOTIFY_FUNCTION", "pg_notify")
 
 
 def get_notify_payload_max_length(default=8000):
     try:
-        length = int(os.environ.get('ODOO_NOTIFY_PAYLOAD_MAX_LENGTH', default))
+        length = int(os.environ.get("ODOO_NOTIFY_PAYLOAD_MAX_LENGTH", default))
     except ValueError:
-        _logger.warning("ODOO_NOTIFY_PAYLOAD_MAX_LENGTH has to be an integer, "
-                        "defaulting to %d bytes", default)
+        _logger.warning(
+            "ODOO_NOTIFY_PAYLOAD_MAX_LENGTH has to be an integer, "
+            "defaulting to %d bytes",
+            default,
+        )
         length = default
     return length
 
@@ -45,7 +48,8 @@ NOTIFY_PAYLOAD_MAX_LENGTH = get_notify_payload_max_length()
 # Bus
 # ---------------------------------------------------------
 def json_dump(v):
-    return json.dumps(v, separators=(',', ':'), default=date_utils.json_default)
+    return json.dumps(v, separators=(",", ":"), default=date_utils.json_default)
+
 
 def hashable(key):
     if isinstance(key, list):
@@ -56,7 +60,11 @@ def hashable(key):
 def channel_with_db(dbname, channel):
     if isinstance(channel, models.Model):
         return (dbname, channel._name, channel.id)
-    if isinstance(channel, tuple) and len(channel) == 2 and isinstance(channel[0], models.Model):
+    if (
+        isinstance(channel, tuple)
+        and len(channel) == 2
+        and isinstance(channel[0], models.Model)
+    ):
         return (dbname, channel[0]._name, channel[0].id, channel[1])
     if isinstance(channel, str):
         return (dbname, channel)
@@ -79,22 +87,27 @@ def get_notify_payloads(channels):
         return [payload]
     else:
         pivot = math.ceil(len(channels) / 2)
-        return (get_notify_payloads(channels[:pivot]) +
-                get_notify_payloads(channels[pivot:]))
+        return get_notify_payloads(channels[:pivot]) + get_notify_payloads(
+            channels[pivot:]
+        )
 
 
 class ImBus(models.Model):
 
-    _name = 'bus.bus'
-    _description = 'Communication Bus'
+    _name = "bus.bus"
+    _description = "Communication Bus"
 
-    channel = fields.Char('Channel')
-    message = fields.Char('Message')
+    channel = fields.Char("Channel")
+    message = fields.Char("Message")
 
     @api.autovacuum
     def _gc_messages(self):
-        timeout_ago = datetime.datetime.utcnow()-datetime.timedelta(seconds=TIMEOUT*2)
-        domain = [('create_date', '<', timeout_ago.strftime(DEFAULT_SERVER_DATETIME_FORMAT))]
+        timeout_ago = datetime.datetime.utcnow() - datetime.timedelta(
+            seconds=TIMEOUT * 2
+        )
+        domain = [
+            ("create_date", "<", timeout_ago.strftime(DEFAULT_SERVER_DATETIME_FORMAT))
+        ]
         return self.sudo().search(domain).unlink()
 
     @api.model
@@ -158,32 +171,43 @@ class ImBus(models.Model):
     def _poll(self, channels, last=0, ignore_ids=None):
         # first poll return the notification in the 'buffer'
         if last == 0:
-            timeout_ago = datetime.datetime.utcnow()-datetime.timedelta(seconds=TIMEOUT)
-            domain = [('create_date', '>', timeout_ago.strftime(DEFAULT_SERVER_DATETIME_FORMAT))]
+            timeout_ago = datetime.datetime.utcnow() - datetime.timedelta(
+                seconds=TIMEOUT
+            )
+            domain = [
+                (
+                    "create_date",
+                    ">",
+                    timeout_ago.strftime(DEFAULT_SERVER_DATETIME_FORMAT),
+                )
+            ]
         else:  # else returns the unread notifications
-            domain = [('id', '>', last)]
+            domain = [("id", ">", last)]
         if ignore_ids:
             domain.append(("id", "not in", ignore_ids))
         channels = [json_dump(channel_with_db(self.env.cr.dbname, c)) for c in channels]
-        domain.append(('channel', 'in', channels))
+        domain.append(("channel", "in", channels))
         notifications = self.sudo().search_read(domain, ["message"])
         # list of notification to return
         result = []
         for notif in notifications:
-            result.append({
-                'id': notif['id'],
-                'message': json.loads(notif['message']),
-            })
+            result.append(
+                {
+                    "id": notif["id"],
+                    "message": json.loads(notif["message"]),
+                }
+            )
         return result
 
     def _bus_last_id(self):
-        last = self.env['bus.bus'].search([], order='id desc', limit=1)
+        last = self.env["bus.bus"].search([], order="id desc", limit=1)
         return last.id if last else 0
 
 
 # ---------------------------------------------------------
 # Dispatcher
 # ---------------------------------------------------------
+
 
 class BusSubscription:
     def __init__(self, channels, last):
@@ -193,7 +217,7 @@ class BusSubscription:
 
 class ImDispatch(threading.Thread):
     def __init__(self):
-        super().__init__(daemon=True, name=f'{__name__}.Bus')
+        super().__init__(daemon=True, name=f"{__name__}.Bus")
         self._channels_to_ws = {}
 
     def subscribe(self, channels, last, db, websocket):
@@ -216,17 +240,18 @@ class ImDispatch(threading.Thread):
         self._clear_outdated_channels(websocket, websocket._channels)
 
     def _clear_outdated_channels(self, websocket, outdated_channels):
-        """ Remove channels from channel to websocket map. """
+        """Remove channels from channel to websocket map."""
         for channel in outdated_channels:
             self._channels_to_ws[channel].remove(websocket)
             if not self._channels_to_ws[channel]:
                 self._channels_to_ws.pop(channel)
 
     def loop(self):
-        """ Dispatch postgres notifications to the relevant websockets """
+        """Dispatch postgres notifications to the relevant websockets"""
         _logger.info("Bus.loop listen imbus on db postgres")
-        with odoo.sql_db.db_connect('postgres').cursor() as cr, \
-             selectors.DefaultSelector() as sel:
+        with odoo.sql_db.db_connect(
+            "postgres"
+        ).cursor() as cr, selectors.DefaultSelector() as sel:
             cr.execute("listen imbus")
             cr.commit()
             conn = cr._cnx
@@ -241,7 +266,9 @@ class ImDispatch(threading.Thread):
                     # subscribed to the corresponding channels.
                     websockets = set()
                     for channel in channels:
-                        websockets.update(self._channels_to_ws.get(hashable(channel), []))
+                        websockets.update(
+                            self._channels_to_ws.get(hashable(channel), [])
+                        )
                     for websocket in websockets:
                         websocket.trigger_notification_dispatching()
 
@@ -254,6 +281,7 @@ class ImDispatch(threading.Thread):
                     continue
                 _logger.exception("Bus.loop error, sleep and retry")
                 time.sleep(TIMEOUT)
+
 
 # Partially undo a2ed3d3d5bdb6025a1ba14ad557a115a86413e65
 # IMDispatch has a lazy start, so we could initialize it anyway

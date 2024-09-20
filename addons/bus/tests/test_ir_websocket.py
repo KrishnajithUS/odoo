@@ -2,6 +2,7 @@
 import json
 from datetime import datetime, timedelta
 from freezegun import freeze_time
+
 try:
     import websocket as ws
 except ImportError:
@@ -17,11 +18,13 @@ from ..models.bus import channel_with_db, json_dump
 class TestIrWebsocket(WebsocketCase):
     def test_only_allow_string_channels_from_frontend(self):
         with self.assertRaises(ValueError):
-            self.env['ir.websocket']._subscribe({
-                'inactivity_period': 1000,
-                'last': 0,
-                'channels': [('odoo', 'discuss.channel', 5)],
-            })
+            self.env["ir.websocket"]._subscribe(
+                {
+                    "inactivity_period": 1000,
+                    "last": 0,
+                    "channels": [("odoo", "discuss.channel", 5)],
+                }
+            )
 
     def test_notify_on_status_change(self):
         bob = new_test_user(self.env, login="bob_user", groups="base.group_user")
@@ -102,4 +105,6 @@ class TestIrWebsocket(WebsocketCase):
         )
         self.assertEqual(notification["message"]["type"], "bus.bus/im_status_updated")
         self.assertEqual(notification["message"]["payload"]["im_status"], "online")
-        self.assertEqual(notification["message"]["payload"]["partner_id"], bob.partner_id.id)
+        self.assertEqual(
+            notification["message"]["payload"]["partner_id"], bob.partner_id.id
+        )

@@ -10,16 +10,20 @@ from ..websocket import wsrequest
 
 
 class IrWebsocket(models.AbstractModel):
-    _name = 'ir.websocket'
-    _description = 'websocket message handling'
+    _name = "ir.websocket"
+    _description = "websocket message handling"
 
     def _get_im_status(self, im_status_ids_by_model):
         im_status = {}
-        if 'res.partner' in im_status_ids_by_model:
-            im_status['Persona'] = [{**p, 'type': "partner"} for p in self.env['res.partner'].with_context(active_test=False).search_read(
-                [('id', 'in', im_status_ids_by_model['res.partner'])],
-                ['im_status']
-            )]
+        if "res.partner" in im_status_ids_by_model:
+            im_status["Persona"] = [
+                {**p, "type": "partner"}
+                for p in self.env["res.partner"]
+                .with_context(active_test=False)
+                .search_read(
+                    [("id", "in", im_status_ids_by_model["res.partner"])], ["im_status"]
+                )
+            ]
         return im_status
 
     def _get_missed_presences_identity_domains(self, presence_channels):
@@ -31,16 +35,30 @@ class IrWebsocket(models.AbstractModel):
             presence channels the user subscribed to.
         """
         partners = self.env["res.partner"].browse(
-            [p.id for p, _ in presence_channels if isinstance(p, self.pool["res.partner"])]
+            [
+                p.id
+                for p, _ in presence_channels
+                if isinstance(p, self.pool["res.partner"])
+            ]
         )
         # sudo: res.partner - can acess users of partner channels to find
         # their presences as those channels were already verified during
         # `_build_bus_channel_list`.
-        return [[("user_id", "in", partners.with_context(active_test=False).sudo().user_ids.ids)]]
+        return [
+            [
+                (
+                    "user_id",
+                    "in",
+                    partners.with_context(active_test=False).sudo().user_ids.ids,
+                )
+            ]
+        ]
 
     def _get_missed_presences_bus_target(self):
         return (
-            self.env.user.partner_id if self.env.user and not self.env.user._is_public() else None
+            self.env.user.partner_id
+            if self.env.user and not self.env.user._is_public()
+            else None
         )
 
     def _build_presence_channel_list(self, presences):
@@ -56,20 +74,28 @@ class IrWebsocket(models.AbstractModel):
                 (partner, "presence")
                 for partner in self.env["res.partner"]
                 .with_context(active_test=False)
-                .search([("id", "in", [int(p[1]) for p in presences if p[0] == "res.partner"])])
+                .search(
+                    [
+                        (
+                            "id",
+                            "in",
+                            [int(p[1]) for p in presences if p[0] == "res.partner"],
+                        )
+                    ]
+                )
             )
         return channels
 
     def _build_bus_channel_list(self, channels):
         """
-            Return the list of channels to subscribe to. Override this
-            method to add channels in addition to the ones the client
-            sent.
+        Return the list of channels to subscribe to. Override this
+        method to add channels in addition to the ones the client
+        sent.
 
-            :param channels: The channel list sent by the client.
+        :param channels: The channel list sent by the client.
         """
         req = request or wsrequest
-        channels.append('broadcast')
+        channels.append("broadcast")
         if req.session.uid:
             channels.append(self.env.user.partner_id)
         return channels
@@ -98,7 +124,10 @@ class IrWebsocket(models.AbstractModel):
             c for c in channels if isinstance(c, str) and c.startswith("odoo-presence-")
         }
         presence_channels = self._build_presence_channel_list(
-            [tuple(c.replace("odoo-presence-", "").split("_")) for c in str_presence_channels]
+            [
+                tuple(c.replace("odoo-presence-", "").split("_"))
+                for c in str_presence_channels
+            ]
         )
         # There is a gap between a subscription client side (which is debounced)
         # and the actual subcription thus presences can be missed. Send a
@@ -106,34 +135,44 @@ class IrWebsocket(models.AbstractModel):
         domain = expression.AND(
             [
                 [("last_poll", ">", datetime.now() - timedelta(seconds=2))],
-                expression.OR(self._get_missed_presences_identity_domains(presence_channels)),
+                expression.OR(
+                    self._get_missed_presences_identity_domains(presence_channels)
+                ),
             ]
         )
         # sudo: bus.presence: can access presences linked to presence channels.
         missed_presences = self.env["bus.presence"].sudo().search(domain)
         all_channels = OrderedSet(presence_channels)
         all_channels.update(
-            self._build_bus_channel_list([c for c in channels if c not in str_presence_channels])
+            self._build_bus_channel_list(
+                [c for c in channels if c not in str_presence_channels]
+            )
         )
-        return {"channels": all_channels, "last": last, "missed_presences": missed_presences}
+        return {
+            "channels": all_channels,
+            "last": last,
+            "missed_presences": missed_presences,
+        }
 
     def _subscribe(self, og_data):
         data = self._prepare_subscribe_data(og_data["channels"], og_data["last"])
-        dispatch.subscribe(data["channels"], data["last"], self.env.registry.db_name, wsrequest.ws)
+        dispatch.subscribe(
+            data["channels"], data["last"], self.env.registry.db_name, wsrequest.ws
+        )
         if bus_target := self._get_missed_presences_bus_target():
             data["missed_presences"]._send_presence(bus_target=bus_target)
 
     def _update_bus_presence(self, inactivity_period, im_status_ids_by_model):
         if self.env.user and not self.env.user._is_public():
-            self.env['bus.presence'].update_presence(
-                inactivity_period,
-                identity_field='user_id',
-                identity_value=self.env.uid
+            self.env["bus.presence"].update_presence(
+                inactivity_period, identity_field="user_id", identity_value=self.env.uid
             )
 
     def _on_websocket_closed(self, cookies):
         if self.env.user and not self.env.user._is_public():
-            self.env["bus.presence"].search([("user_id", "=", self.env.uid)]).status = "offline"
+            self.env["bus.presence"].search(
+                [("user_id", "=", self.env.uid)]
+            ).status = "offline"
 
     @classmethod
     def _authenticate(cls):
@@ -142,5 +181,5 @@ class IrWebsocket(models.AbstractModel):
                 wsrequest.session.logout(keep_db=True)
                 raise SessionExpiredException()
         else:
-            public_user = wsrequest.env.ref('base.public_user')
+            public_user = wsrequest.env.ref("base.public_user")
             wsrequest.update_env(user=public_user.id)

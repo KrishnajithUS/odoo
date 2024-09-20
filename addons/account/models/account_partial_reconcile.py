@@ -12,79 +12,104 @@ class AccountPartialReconcile(models.Model):
 
     # ==== Reconciliation fields ====
     debit_move_id = fields.Many2one(
-        comodel_name='account.move.line',
-        index=True, required=True)
+        comodel_name="account.move.line", index=True, required=True
+    )
     credit_move_id = fields.Many2one(
-        comodel_name='account.move.line',
-        index=True, required=True)
+        comodel_name="account.move.line", index=True, required=True
+    )
     full_reconcile_id = fields.Many2one(
-        comodel_name='account.full.reconcile',
-        string="Full Reconcile", copy=False, index='btree_not_null')
-    exchange_move_id = fields.Many2one(comodel_name='account.move', index='btree_not_null')
+        comodel_name="account.full.reconcile",
+        string="Full Reconcile",
+        copy=False,
+        index="btree_not_null",
+    )
+    exchange_move_id = fields.Many2one(
+        comodel_name="account.move", index="btree_not_null"
+    )
 
     # ==== Currency fields ====
     company_currency_id = fields.Many2one(
-        comodel_name='res.currency',
+        comodel_name="res.currency",
         string="Company Currency",
-        related='company_id.currency_id',
-        help="Utility field to express amount currency")
+        related="company_id.currency_id",
+        help="Utility field to express amount currency",
+    )
     debit_currency_id = fields.Many2one(
-        comodel_name='res.currency',
+        comodel_name="res.currency",
         store=True,
-        related='debit_move_id.currency_id', precompute=True,
-        string="Currency of the debit journal item.")
+        related="debit_move_id.currency_id",
+        precompute=True,
+        string="Currency of the debit journal item.",
+    )
     credit_currency_id = fields.Many2one(
-        comodel_name='res.currency',
+        comodel_name="res.currency",
         store=True,
-        related='credit_move_id.currency_id', precompute=True,
-        string="Currency of the credit journal item.")
+        related="credit_move_id.currency_id",
+        precompute=True,
+        string="Currency of the credit journal item.",
+    )
 
     # ==== Amount fields ====
     amount = fields.Monetary(
-        currency_field='company_currency_id',
-        help="Always positive amount concerned by this matching expressed in the company currency.")
+        currency_field="company_currency_id",
+        help="Always positive amount concerned by this matching expressed in the company currency.",
+    )
     debit_amount_currency = fields.Monetary(
-        currency_field='debit_currency_id',
-        help="Always positive amount concerned by this matching expressed in the debit line foreign currency.")
+        currency_field="debit_currency_id",
+        help="Always positive amount concerned by this matching expressed in the debit line foreign currency.",
+    )
     credit_amount_currency = fields.Monetary(
-        currency_field='credit_currency_id',
-        help="Always positive amount concerned by this matching expressed in the credit line foreign currency.")
+        currency_field="credit_currency_id",
+        help="Always positive amount concerned by this matching expressed in the credit line foreign currency.",
+    )
 
     # ==== Other fields ====
     company_id = fields.Many2one(
-        comodel_name='res.company',
-        string="Company", store=True, readonly=False,
+        comodel_name="res.company",
+        string="Company",
+        store=True,
+        readonly=False,
         precompute=True,
-        compute='_compute_company_id')
+        compute="_compute_company_id",
+    )
     max_date = fields.Date(
-        string="Max Date of Matched Lines", store=True,
+        string="Max Date of Matched Lines",
+        store=True,
         precompute=True,
-        compute='_compute_max_date')
-        # used to determine at which date this reconciliation needs to be shown on the aged receivable/payable reports
+        compute="_compute_max_date",
+    )
+    # used to determine at which date this reconciliation needs to be shown on the aged receivable/payable reports
 
     # -------------------------------------------------------------------------
     # CONSTRAINT METHODS
     # -------------------------------------------------------------------------
 
-    @api.constrains('debit_currency_id', 'credit_currency_id')
+    @api.constrains("debit_currency_id", "credit_currency_id")
     def _check_required_computed_currencies(self):
-        bad_partials = self.filtered(lambda partial: not partial.debit_currency_id or not partial.credit_currency_id)
+        bad_partials = self.filtered(
+            lambda partial: not partial.debit_currency_id
+            or not partial.credit_currency_id
+        )
         if bad_partials:
-            raise ValidationError(_("Missing foreign currencies on partials having ids: %s", bad_partials.ids))
+            raise ValidationError(
+                _(
+                    "Missing foreign currencies on partials having ids: %s",
+                    bad_partials.ids,
+                )
+            )
 
     # -------------------------------------------------------------------------
     # COMPUTE METHODS
     # -------------------------------------------------------------------------
 
-    @api.depends('debit_move_id.date', 'credit_move_id.date')
+    @api.depends("debit_move_id.date", "credit_move_id.date")
     def _compute_max_date(self):
         for partial in self:
             partial.max_date = max(
-                partial.debit_move_id.date,
-                partial.credit_move_id.date
+                partial.debit_move_id.date, partial.credit_move_id.date
             )
 
-    @api.depends('debit_move_id', 'credit_move_id')
+    @api.depends("debit_move_id", "credit_move_id")
     def _compute_company_id(self):
         for partial in self:
             # Potential exchange diff and caba entries should be created on the invoice side if any
@@ -111,7 +136,9 @@ class AccountPartialReconcile(models.Model):
         all_reconciled = self.debit_move_id + self.credit_move_id
 
         # Retrieve the CABA entries to reverse.
-        moves_to_reverse = self.env['account.move'].search([('tax_cash_basis_rec_id', 'in', self.ids)])
+        moves_to_reverse = self.env["account.move"].search(
+            [("tax_cash_basis_rec_id", "in", self.ids)]
+        )
         # Same for the exchange difference entries.
         moves_to_reverse += self.exchange_move_id
 
@@ -123,10 +150,15 @@ class AccountPartialReconcile(models.Model):
 
         # Reverse CABA entries.
         if moves_to_reverse:
-            default_values_list = [{
-                'date': move._get_accounting_date(move.date, move._affect_tax_report()),
-                'ref': _('Reversal of: %s', move.name),
-            } for move in moves_to_reverse]
+            default_values_list = [
+                {
+                    "date": move._get_accounting_date(
+                        move.date, move._affect_tax_report()
+                    ),
+                    "ref": _("Reversal of: %s", move.name),
+                }
+                for move in moves_to_reverse
+            ]
             moves_to_reverse._reverse_moves(default_values_list, cancel=True)
 
         self._update_matching_number(all_reconciled)
@@ -150,10 +182,12 @@ class AccountPartialReconcile(models.Model):
         # At the end, we have an index for the number to assign of all lines.
         number2lines = {}
         line2number = {}
-        for partial in all_partials.sorted('id'):
+        for partial in all_partials.sorted("id"):
             debit_min_id = line2number.get(partial.debit_move_id.id)
             credit_min_id = line2number.get(partial.credit_move_id.id)
-            if debit_min_id and credit_min_id:  # merging the 2 graph into the one with smalles number
+            if (
+                debit_min_id and credit_min_id
+            ):  # merging the 2 graph into the one with smalles number
                 if debit_min_id != credit_min_id:
                     min_min_id = min(debit_min_id, credit_min_id)
                     max_min_id = max(debit_min_id, credit_min_id)
@@ -167,12 +201,16 @@ class AccountPartialReconcile(models.Model):
                 number2lines[credit_min_id].append(partial.debit_move_id.id)
                 line2number[partial.debit_move_id.id] = credit_min_id
             else:  # creating a new graph
-                number2lines[partial.id] = [partial.debit_move_id.id, partial.credit_move_id.id]
+                number2lines[partial.id] = [
+                    partial.debit_move_id.id,
+                    partial.credit_move_id.id,
+                ]
                 line2number[partial.debit_move_id.id] = partial.id
                 line2number[partial.credit_move_id.id] = partial.id
 
-        amls.flush_recordset(['full_reconcile_id'])
-        self.env.cr.execute_values("""
+        amls.flush_recordset(["full_reconcile_id"])
+        self.env.cr.execute_values(
+            """
             UPDATE account_move_line l
                SET matching_number = CASE
                        WHEN l.full_reconcile_id IS NOT NULL THEN l.full_reconcile_id::text
@@ -180,9 +218,14 @@ class AccountPartialReconcile(models.Model):
                    END
               FROM (VALUES %s) AS source(number, ids)
              WHERE l.id = ANY(source.ids)
-        """, list(number2lines.items()), page_size=1000)
-        processed_amls = self.env['account.move.line'].browse([_id for ids in number2lines.values() for _id in ids])
-        processed_amls.invalidate_recordset(['matching_number'])
+        """,
+            list(number2lines.items()),
+            page_size=1000,
+        )
+        processed_amls = self.env["account.move.line"].browse(
+            [_id for ids in number2lines.values() for _id in ids]
+        )
+        processed_amls.invalidate_recordset(["matching_number"])
         (amls - processed_amls).matching_number = False
 
     # -------------------------------------------------------------------------
@@ -190,13 +233,13 @@ class AccountPartialReconcile(models.Model):
     # -------------------------------------------------------------------------
 
     def _collect_tax_cash_basis_values(self):
-        ''' Collect all information needed to create the tax cash basis journal entries on the current partials.
+        """Collect all information needed to create the tax cash basis journal entries on the current partials.
         :return:    A dictionary mapping each move_id to the result of 'account_move._collect_tax_cash_basis_values'.
                     Also, add the 'partials' keys being a list of dictionary, one for each partial to process:
                         * partial:          The account.partial.reconcile record.
                         * percentage:       The reconciled percentage represented by the partial.
                         * payment_rate:     The applied rate of this partial.
-        '''
+        """
         tax_cash_basis_values_per_move = {}
 
         if not self:
@@ -219,9 +262,13 @@ class AccountPartialReconcile(models.Model):
                 journal = partial.company_id.tax_cash_basis_journal_id
 
                 if not journal:
-                    raise UserError(_("There is no tax cash basis journal defined for the '%s' company.\n"
-                                      "Configure it in Accounting/Configuration/Settings",
-                                      partial.company_id.display_name))
+                    raise UserError(
+                        _(
+                            "There is no tax cash basis journal defined for the '%s' company.\n"
+                            "Configure it in Accounting/Configuration/Settings",
+                            partial.company_id.display_name,
+                        )
+                    )
 
                 partial_amount = 0.0
                 partial_amount_currency = 0.0
@@ -244,7 +291,9 @@ class AccountPartialReconcile(models.Model):
                     source_line = partial.credit_move_id
                     counterpart_line = partial.debit_move_id
 
-                if partial.debit_move_id.move_id.is_invoice(include_receipts=True) and partial.credit_move_id.move_id.is_invoice(include_receipts=True):
+                if partial.debit_move_id.move_id.is_invoice(
+                    include_receipts=True
+                ) and partial.credit_move_id.move_id.is_invoice(include_receipts=True):
                     # Will match when reconciling a refund with an invoice.
                     # In this case, we want to use the rate of each businness document to compute its cash basis entry,
                     # not the rate of what it's reconciled with.
@@ -254,28 +303,32 @@ class AccountPartialReconcile(models.Model):
                 else:
                     payment_date = counterpart_line.date
 
-                if move_values['currency'] == move.company_id.currency_id:
+                if move_values["currency"] == move.company_id.currency_id:
                     # Ignore the exchange difference.
                     if move.company_currency_id.is_zero(partial_amount):
                         continue
 
                     # Percentage made on company's currency.
-                    percentage = partial_amount / move_values['total_balance']
+                    percentage = partial_amount / move_values["total_balance"]
                 else:
                     # Ignore the exchange difference.
                     if move.currency_id.is_zero(partial_amount_currency):
                         continue
 
                     # Percentage made on foreign currency.
-                    percentage = partial_amount_currency / move_values['total_amount_currency']
+                    percentage = (
+                        partial_amount_currency / move_values["total_amount_currency"]
+                    )
 
                 if source_line.currency_id != counterpart_line.currency_id:
                     # When the invoice and the payment are not sharing the same foreign currency, the rate is computed
                     # on-the-fly using the payment date.
-                    if 'forced_rate_from_register_payment' in self._context:
-                        payment_rate = self._context['forced_rate_from_register_payment']
+                    if "forced_rate_from_register_payment" in self._context:
+                        payment_rate = self._context[
+                            "forced_rate_from_register_payment"
+                        ]
                     else:
-                        payment_rate = self.env['res.currency']._get_conversion_rate(
+                        payment_rate = self.env["res.currency"]._get_conversion_rate(
                             counterpart_line.company_currency_id,
                             source_line.currency_id,
                             counterpart_line.company_id,
@@ -289,21 +342,21 @@ class AccountPartialReconcile(models.Model):
                 tax_cash_basis_values_per_move[move.id] = move_values
 
                 partial_vals = {
-                    'partial': partial,
-                    'percentage': percentage,
-                    'payment_rate': payment_rate,
+                    "partial": partial,
+                    "percentage": percentage,
+                    "payment_rate": payment_rate,
                 }
 
                 # Add partials.
-                move_values.setdefault('partials', [])
-                move_values['partials'].append(partial_vals)
+                move_values.setdefault("partials", [])
+                move_values["partials"].append(partial_vals)
 
         # Clean-up moves having nothing to process.
         return {k: v for k, v in tax_cash_basis_values_per_move.items() if v}
 
     @api.model
     def _prepare_cash_basis_base_line_vals(self, base_line, balance, amount_currency):
-        ''' Prepare the values to be used to create the cash basis journal items for the tax base line
+        """Prepare the values to be used to create the cash basis journal items for the tax base line
         passed as parameter.
 
         :param base_line:       An account.move.line being the base of some taxes.
@@ -311,199 +364,229 @@ class AccountPartialReconcile(models.Model):
         :param amount_currency: The balance in foreign currency to consider for this line.
         :return:                A python dictionary that could be passed to the create method of
                                 account.move.line.
-        '''
-        account = base_line.company_id.account_cash_basis_base_account_id or base_line.account_id
-        tax_ids = base_line.tax_ids.flatten_taxes_hierarchy().filtered(lambda x: x.tax_exigibility == 'on_payment')
+        """
+        account = (
+            base_line.company_id.account_cash_basis_base_account_id
+            or base_line.account_id
+        )
+        tax_ids = base_line.tax_ids.flatten_taxes_hierarchy().filtered(
+            lambda x: x.tax_exigibility == "on_payment"
+        )
         is_refund = base_line.is_refund
-        tax_tags = tax_ids.get_tax_tags(is_refund, 'base')
-        product_tags = base_line.tax_tag_ids.filtered(lambda x: x.applicability == 'products')
+        tax_tags = tax_ids.get_tax_tags(is_refund, "base")
+        product_tags = base_line.tax_tag_ids.filtered(
+            lambda x: x.applicability == "products"
+        )
         all_tags = tax_tags + product_tags
 
         return {
-            'name': base_line.move_id.name,
-            'debit': balance if balance > 0.0 else 0.0,
-            'credit': -balance if balance < 0.0 else 0.0,
-            'amount_currency': amount_currency,
-            'currency_id': base_line.currency_id.id,
-            'partner_id': base_line.partner_id.id,
-            'account_id': account.id,
-            'tax_ids': [Command.set(tax_ids.ids)],
-            'tax_tag_ids': [Command.set(all_tags.ids)],
-            'analytic_distribution': base_line.analytic_distribution,
+            "name": base_line.move_id.name,
+            "debit": balance if balance > 0.0 else 0.0,
+            "credit": -balance if balance < 0.0 else 0.0,
+            "amount_currency": amount_currency,
+            "currency_id": base_line.currency_id.id,
+            "partner_id": base_line.partner_id.id,
+            "account_id": account.id,
+            "tax_ids": [Command.set(tax_ids.ids)],
+            "tax_tag_ids": [Command.set(all_tags.ids)],
+            "analytic_distribution": base_line.analytic_distribution,
         }
 
     @api.model
     def _prepare_cash_basis_counterpart_base_line_vals(self, cb_base_line_vals):
-        ''' Prepare the move line used as a counterpart of the line created by
+        """Prepare the move line used as a counterpart of the line created by
         _prepare_cash_basis_base_line_vals.
 
         :param cb_base_line_vals:   The line returned by _prepare_cash_basis_base_line_vals.
         :return:                    A python dictionary that could be passed to the create method of
                                     account.move.line.
-        '''
+        """
         return {
-            'name': cb_base_line_vals['name'],
-            'debit': cb_base_line_vals['credit'],
-            'credit': cb_base_line_vals['debit'],
-            'account_id': cb_base_line_vals['account_id'],
-            'amount_currency': -cb_base_line_vals['amount_currency'],
-            'currency_id': cb_base_line_vals['currency_id'],
-            'partner_id': cb_base_line_vals['partner_id'],
-            'analytic_distribution': cb_base_line_vals['analytic_distribution'],
+            "name": cb_base_line_vals["name"],
+            "debit": cb_base_line_vals["credit"],
+            "credit": cb_base_line_vals["debit"],
+            "account_id": cb_base_line_vals["account_id"],
+            "amount_currency": -cb_base_line_vals["amount_currency"],
+            "currency_id": cb_base_line_vals["currency_id"],
+            "partner_id": cb_base_line_vals["partner_id"],
+            "analytic_distribution": cb_base_line_vals["analytic_distribution"],
         }
 
     @api.model
     def _prepare_cash_basis_tax_line_vals(self, tax_line, balance, amount_currency):
-        ''' Prepare the move line corresponding to a tax in the cash basis entry.
+        """Prepare the move line corresponding to a tax in the cash basis entry.
 
         :param tax_line:        An account.move.line record being a tax line.
         :param balance:         The balance to consider for this line.
         :param amount_currency: The balance in foreign currency to consider for this line.
         :return:                A python dictionary that could be passed to the create method of
                                 account.move.line.
-        '''
-        tax_ids = tax_line.tax_ids.filtered(lambda x: x.tax_exigibility == 'on_payment')
-        base_tags = tax_ids.get_tax_tags(tax_line.tax_repartition_line_id.filtered(lambda rl: rl.document_type == 'refund').tax_id, 'base')
-        product_tags = tax_line.tax_tag_ids.filtered(lambda x: x.applicability == 'products')
+        """
+        tax_ids = tax_line.tax_ids.filtered(lambda x: x.tax_exigibility == "on_payment")
+        base_tags = tax_ids.get_tax_tags(
+            tax_line.tax_repartition_line_id.filtered(
+                lambda rl: rl.document_type == "refund"
+            ).tax_id,
+            "base",
+        )
+        product_tags = tax_line.tax_tag_ids.filtered(
+            lambda x: x.applicability == "products"
+        )
         all_tags = base_tags + tax_line.tax_repartition_line_id.tag_ids + product_tags
 
         return {
-            'name': tax_line.name,
-            'debit': balance if balance > 0.0 else 0.0,
-            'credit': -balance if balance < 0.0 else 0.0,
-            'tax_base_amount': tax_line.tax_base_amount,
-            'tax_repartition_line_id': tax_line.tax_repartition_line_id.id,
-            'tax_ids': [Command.set(tax_ids.ids)],
-            'tax_tag_ids': [Command.set(all_tags.ids)],
-            'account_id': tax_line.tax_repartition_line_id.account_id.id or tax_line.company_id.account_cash_basis_base_account_id.id or tax_line.account_id.id,
-            'amount_currency': amount_currency,
-            'currency_id': tax_line.currency_id.id,
-            'partner_id': tax_line.partner_id.id,
-            'analytic_distribution': tax_line.analytic_distribution,
+            "name": tax_line.name,
+            "debit": balance if balance > 0.0 else 0.0,
+            "credit": -balance if balance < 0.0 else 0.0,
+            "tax_base_amount": tax_line.tax_base_amount,
+            "tax_repartition_line_id": tax_line.tax_repartition_line_id.id,
+            "tax_ids": [Command.set(tax_ids.ids)],
+            "tax_tag_ids": [Command.set(all_tags.ids)],
+            "account_id": tax_line.tax_repartition_line_id.account_id.id
+            or tax_line.company_id.account_cash_basis_base_account_id.id
+            or tax_line.account_id.id,
+            "amount_currency": amount_currency,
+            "currency_id": tax_line.currency_id.id,
+            "partner_id": tax_line.partner_id.id,
+            "analytic_distribution": tax_line.analytic_distribution,
             # No need to set tax_tag_invert as on the base line; it will be computed from the repartition line
         }
 
     @api.model
     def _prepare_cash_basis_counterpart_tax_line_vals(self, tax_line, cb_tax_line_vals):
-        ''' Prepare the move line used as a counterpart of the line created by
+        """Prepare the move line used as a counterpart of the line created by
         _prepare_cash_basis_tax_line_vals.
 
         :param tax_line:            An account.move.line record being a tax line.
         :param cb_tax_line_vals:    The result of _prepare_cash_basis_counterpart_tax_line_vals.
         :return:                    A python dictionary that could be passed to the create method of
                                     account.move.line.
-        '''
+        """
         return {
-            'name': cb_tax_line_vals['name'],
-            'debit': cb_tax_line_vals['credit'],
-            'credit': cb_tax_line_vals['debit'],
-            'account_id': tax_line.account_id.id,
-            'amount_currency': -cb_tax_line_vals['amount_currency'],
-            'currency_id': cb_tax_line_vals['currency_id'],
-            'partner_id': cb_tax_line_vals['partner_id'],
-            'analytic_distribution': cb_tax_line_vals['analytic_distribution'],
+            "name": cb_tax_line_vals["name"],
+            "debit": cb_tax_line_vals["credit"],
+            "credit": cb_tax_line_vals["debit"],
+            "account_id": tax_line.account_id.id,
+            "amount_currency": -cb_tax_line_vals["amount_currency"],
+            "currency_id": cb_tax_line_vals["currency_id"],
+            "partner_id": cb_tax_line_vals["partner_id"],
+            "analytic_distribution": cb_tax_line_vals["analytic_distribution"],
         }
 
     @api.model
     def _get_cash_basis_base_line_grouping_key_from_vals(self, base_line_vals):
-        ''' Get the grouping key of a cash basis base line that hasn't yet been created.
+        """Get the grouping key of a cash basis base line that hasn't yet been created.
         :param base_line_vals:  The values to create a new account.move.line record.
         :return:                The grouping key as a tuple.
-        '''
-        tax_ids = base_line_vals['tax_ids'][0][2] # Decode [(6, 0, [...])] command
-        base_taxes = self.env['account.tax'].browse(tax_ids)
+        """
+        tax_ids = base_line_vals["tax_ids"][0][2]  # Decode [(6, 0, [...])] command
+        base_taxes = self.env["account.tax"].browse(tax_ids)
         return (
-            base_line_vals['currency_id'],
-            base_line_vals['partner_id'],
-            base_line_vals['account_id'],
-            tuple(base_taxes.filtered(lambda x: x.tax_exigibility == 'on_payment').ids),
-            frozendict(base_line_vals['analytic_distribution'] or {}),
+            base_line_vals["currency_id"],
+            base_line_vals["partner_id"],
+            base_line_vals["account_id"],
+            tuple(base_taxes.filtered(lambda x: x.tax_exigibility == "on_payment").ids),
+            frozendict(base_line_vals["analytic_distribution"] or {}),
         )
 
     @api.model
-    def _get_cash_basis_base_line_grouping_key_from_record(self, base_line, account=None):
-        ''' Get the grouping key of a journal item being a base line.
+    def _get_cash_basis_base_line_grouping_key_from_record(
+        self, base_line, account=None
+    ):
+        """Get the grouping key of a journal item being a base line.
         :param base_line:   An account.move.line record.
         :param account:     Optional account to shadow the current base_line one.
         :return:            The grouping key as a tuple.
-        '''
+        """
         return (
             base_line.currency_id.id,
             base_line.partner_id.id,
             (account or base_line.account_id).id,
-            tuple(base_line.tax_ids.flatten_taxes_hierarchy().filtered(lambda x: x.tax_exigibility == 'on_payment').ids),
+            tuple(
+                base_line.tax_ids.flatten_taxes_hierarchy()
+                .filtered(lambda x: x.tax_exigibility == "on_payment")
+                .ids
+            ),
             frozendict(base_line.analytic_distribution or {}),
         )
 
     @api.model
     def _get_cash_basis_tax_line_grouping_key_from_vals(self, tax_line_vals):
-        ''' Get the grouping key of a cash basis tax line that hasn't yet been created.
+        """Get the grouping key of a cash basis tax line that hasn't yet been created.
         :param tax_line_vals:   The values to create a new account.move.line record.
         :return:                The grouping key as a tuple.
-        '''
-        tax_ids = tax_line_vals['tax_ids'][0][2] # Decode [(6, 0, [...])] command
-        base_taxes = self.env['account.tax'].browse(tax_ids)
+        """
+        tax_ids = tax_line_vals["tax_ids"][0][2]  # Decode [(6, 0, [...])] command
+        base_taxes = self.env["account.tax"].browse(tax_ids)
         return (
-            tax_line_vals['currency_id'],
-            tax_line_vals['partner_id'],
-            tax_line_vals['account_id'],
-            tuple(base_taxes.filtered(lambda x: x.tax_exigibility == 'on_payment').ids),
-            tax_line_vals['tax_repartition_line_id'],
-            frozendict(tax_line_vals['analytic_distribution'] or {}),
+            tax_line_vals["currency_id"],
+            tax_line_vals["partner_id"],
+            tax_line_vals["account_id"],
+            tuple(base_taxes.filtered(lambda x: x.tax_exigibility == "on_payment").ids),
+            tax_line_vals["tax_repartition_line_id"],
+            frozendict(tax_line_vals["analytic_distribution"] or {}),
         )
 
     @api.model
     def _get_cash_basis_tax_line_grouping_key_from_record(self, tax_line, account=None):
-        ''' Get the grouping key of a journal item being a tax line.
+        """Get the grouping key of a journal item being a tax line.
         :param tax_line:    An account.move.line record.
         :param account:     Optional account to shadow the current tax_line one.
         :return:            The grouping key as a tuple.
-        '''
+        """
         return (
             tax_line.currency_id.id,
             tax_line.partner_id.id,
             (account or tax_line.account_id).id,
-            tuple(tax_line.tax_ids.filtered(lambda x: x.tax_exigibility == 'on_payment').ids),
+            tuple(
+                tax_line.tax_ids.filtered(
+                    lambda x: x.tax_exigibility == "on_payment"
+                ).ids
+            ),
             tax_line.tax_repartition_line_id.id,
             frozendict(tax_line.analytic_distribution or {}),
         )
 
     def _create_tax_cash_basis_moves(self):
-        ''' Create the tax cash basis journal entries.
+        """Create the tax cash basis journal entries.
         :return: The newly created journal entries.
-        '''
+        """
         tax_cash_basis_values_per_move = self._collect_tax_cash_basis_values()
         today = fields.Date.context_today(self)
 
         moves_to_create = []
         to_reconcile_after = []
         for move_values in tax_cash_basis_values_per_move.values():
-            move = move_values['move']
+            move = move_values["move"]
             pending_cash_basis_lines = []
 
-            for partial_values in move_values['partials']:
-                partial = partial_values['partial']
+            for partial_values in move_values["partials"]:
+                partial = partial_values["partial"]
 
                 # Init the journal entry.
                 lock_date = move.company_id._get_user_fiscal_lock_date()
-                move_date = partial.max_date if partial.max_date > (lock_date or date.min) else today
+                move_date = (
+                    partial.max_date
+                    if partial.max_date > (lock_date or date.min)
+                    else today
+                )
                 move_vals = {
-                    'move_type': 'entry',
-                    'date': move_date,
-                    'ref': move.name,
-                    'journal_id': partial.company_id.tax_cash_basis_journal_id.id,
-                    'company_id': partial.company_id.id,
-                    'line_ids': [],
-                    'tax_cash_basis_rec_id': partial.id,
-                    'tax_cash_basis_origin_move_id': move.id,
-                    'fiscal_position_id': move.fiscal_position_id.id,
+                    "move_type": "entry",
+                    "date": move_date,
+                    "ref": move.name,
+                    "journal_id": partial.company_id.tax_cash_basis_journal_id.id,
+                    "company_id": partial.company_id.id,
+                    "line_ids": [],
+                    "tax_cash_basis_rec_id": partial.id,
+                    "tax_cash_basis_origin_move_id": move.id,
+                    "fiscal_position_id": move.fiscal_position_id.id,
                 }
 
                 # Tracking of lines grouped all together.
                 # Used to reduce the number of generated lines and to avoid rounding issues.
                 partial_lines_to_create = {}
 
-                for caba_treatment, line in move_values['to_process_lines']:
+                for caba_treatment, line in move_values["to_process_lines"]:
 
                     # ==========================================================================
                     # Compute the balance of the current line on the cash basis entry.
@@ -512,8 +595,14 @@ class AccountPartialReconcile(models.Model):
                     # ==========================================================================
 
                     # Percentage expressed in the foreign currency.
-                    amount_currency = line.currency_id.round(line.amount_currency * partial_values['percentage'])
-                    balance = partial_values['payment_rate'] and amount_currency / partial_values['payment_rate'] or 0.0
+                    amount_currency = line.currency_id.round(
+                        line.amount_currency * partial_values["percentage"]
+                    )
+                    balance = (
+                        partial_values["payment_rate"]
+                        and amount_currency / partial_values["payment_rate"]
+                        or 0.0
+                    )
 
                     # ==========================================================================
                     # Prepare the mirror cash basis journal item of the current line.
@@ -525,43 +614,65 @@ class AccountPartialReconcile(models.Model):
                     # and well reported in the Tax Report.
                     # ==========================================================================
 
-                    if caba_treatment == 'tax':
+                    if caba_treatment == "tax":
                         # Tax line.
 
-                        cb_line_vals = self._prepare_cash_basis_tax_line_vals(line, balance, amount_currency)
-                        grouping_key = self._get_cash_basis_tax_line_grouping_key_from_vals(cb_line_vals)
-                    elif caba_treatment == 'base':
+                        cb_line_vals = self._prepare_cash_basis_tax_line_vals(
+                            line, balance, amount_currency
+                        )
+                        grouping_key = (
+                            self._get_cash_basis_tax_line_grouping_key_from_vals(
+                                cb_line_vals
+                            )
+                        )
+                    elif caba_treatment == "base":
                         # Base line.
 
-                        cb_line_vals = self._prepare_cash_basis_base_line_vals(line, balance, amount_currency)
-                        grouping_key = self._get_cash_basis_base_line_grouping_key_from_vals(cb_line_vals)
+                        cb_line_vals = self._prepare_cash_basis_base_line_vals(
+                            line, balance, amount_currency
+                        )
+                        grouping_key = (
+                            self._get_cash_basis_base_line_grouping_key_from_vals(
+                                cb_line_vals
+                            )
+                        )
 
                     if grouping_key in partial_lines_to_create:
-                        aggregated_vals = partial_lines_to_create[grouping_key]['vals']
+                        aggregated_vals = partial_lines_to_create[grouping_key]["vals"]
 
-                        debit = aggregated_vals['debit'] + cb_line_vals['debit']
-                        credit = aggregated_vals['credit'] + cb_line_vals['credit']
+                        debit = aggregated_vals["debit"] + cb_line_vals["debit"]
+                        credit = aggregated_vals["credit"] + cb_line_vals["credit"]
                         balance = debit - credit
 
-                        aggregated_vals.update({
-                            'debit': balance if balance > 0 else 0,
-                            'credit': -balance if balance < 0 else 0,
-                            'amount_currency': aggregated_vals['amount_currency'] + cb_line_vals['amount_currency'],
-                        })
+                        aggregated_vals.update(
+                            {
+                                "debit": balance if balance > 0 else 0,
+                                "credit": -balance if balance < 0 else 0,
+                                "amount_currency": aggregated_vals["amount_currency"]
+                                + cb_line_vals["amount_currency"],
+                            }
+                        )
 
-                        if caba_treatment == 'tax':
-                            aggregated_vals.update({
-                                'tax_base_amount': aggregated_vals['tax_base_amount'] + cb_line_vals['tax_base_amount'],
-                            })
-                            partial_lines_to_create[grouping_key]['tax_line'] += line
+                        if caba_treatment == "tax":
+                            aggregated_vals.update(
+                                {
+                                    "tax_base_amount": aggregated_vals[
+                                        "tax_base_amount"
+                                    ]
+                                    + cb_line_vals["tax_base_amount"],
+                                }
+                            )
+                            partial_lines_to_create[grouping_key]["tax_line"] += line
                     else:
                         partial_lines_to_create[grouping_key] = {
-                            'vals': cb_line_vals,
+                            "vals": cb_line_vals,
                         }
-                        if caba_treatment == 'tax':
-                            partial_lines_to_create[grouping_key].update({
-                                'tax_line': line,
-                            })
+                        if caba_treatment == "tax":
+                            partial_lines_to_create[grouping_key].update(
+                                {
+                                    "tax_line": line,
+                                }
+                            )
 
                 # ==========================================================================
                 # Create the counterpart journal items.
@@ -572,41 +683,62 @@ class AccountPartialReconcile(models.Model):
                 sequence = 0
 
                 for grouping_key, aggregated_vals in partial_lines_to_create.items():
-                    line_vals = aggregated_vals['vals']
-                    line_vals['sequence'] = sequence
+                    line_vals = aggregated_vals["vals"]
+                    line_vals["sequence"] = sequence
 
-                    pending_cash_basis_lines.append((grouping_key, line_vals['amount_currency']))
+                    pending_cash_basis_lines.append(
+                        (grouping_key, line_vals["amount_currency"])
+                    )
 
-                    if 'tax_repartition_line_id' in line_vals:
+                    if "tax_repartition_line_id" in line_vals:
                         # Tax line.
 
-                        tax_line = aggregated_vals['tax_line']
-                        counterpart_line_vals = self._prepare_cash_basis_counterpart_tax_line_vals(tax_line, line_vals)
-                        counterpart_line_vals['sequence'] = sequence + 1
+                        tax_line = aggregated_vals["tax_line"]
+                        counterpart_line_vals = (
+                            self._prepare_cash_basis_counterpart_tax_line_vals(
+                                tax_line, line_vals
+                            )
+                        )
+                        counterpart_line_vals["sequence"] = sequence + 1
 
                         if tax_line.account_id.reconcile:
                             move_index = len(moves_to_create)
-                            to_reconcile_after.append((tax_line, move_index, counterpart_line_vals['sequence']))
+                            to_reconcile_after.append(
+                                (
+                                    tax_line,
+                                    move_index,
+                                    counterpart_line_vals["sequence"],
+                                )
+                            )
 
                     else:
                         # Base line.
 
-                        counterpart_line_vals = self._prepare_cash_basis_counterpart_base_line_vals(line_vals)
-                        counterpart_line_vals['sequence'] = sequence + 1
+                        counterpart_line_vals = (
+                            self._prepare_cash_basis_counterpart_base_line_vals(
+                                line_vals
+                            )
+                        )
+                        counterpart_line_vals["sequence"] = sequence + 1
 
                     sequence += 2
 
-                    move_vals['line_ids'] += [(0, 0, counterpart_line_vals), (0, 0, line_vals)]
+                    move_vals["line_ids"] += [
+                        (0, 0, counterpart_line_vals),
+                        (0, 0, line_vals),
+                    ]
 
                 moves_to_create.append(move_vals)
 
-        moves = self.env['account.move']\
+        moves = (
+            self.env["account.move"]
             .with_context(
                 skip_invoice_sync=True,
                 skip_invoice_line_sync=True,
                 skip_account_move_synchronization=True,
-            )\
+            )
             .create(moves_to_create)
+        )
         moves._post(soft=False)
 
         # Reconcile the tax lines being on a reconcile tax basis transfer account.
@@ -619,7 +751,9 @@ class AccountPartialReconcile(models.Model):
             if not lines:
                 continue
 
-            counterpart_line = moves[move_index].line_ids.filtered(lambda line: line.sequence == sequence)
+            counterpart_line = moves[move_index].line_ids.filtered(
+                lambda line: line.sequence == sequence
+            )
 
             # When dealing with tiny amounts, the line could have a zero amount and then, be already reconciled.
             if counterpart_line.reconciled:
@@ -627,6 +761,6 @@ class AccountPartialReconcile(models.Model):
 
             reconciliation_plan.append((counterpart_line + lines))
 
-        self.env['account.move.line']._reconcile_plan(reconciliation_plan)
+        self.env["account.move.line"]._reconcile_plan(reconciliation_plan)
 
         return moves

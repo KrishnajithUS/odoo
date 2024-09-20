@@ -7,4 +7,4 @@ from odoo import fields, models
 class Company(models.Model):
     _inherit = "res.company"
 
-    check_account_audit_trail = fields.Boolean(string='Audit Trail')
+    check_account_audit_trail = fields.Boolean(string="Audit Trail")
